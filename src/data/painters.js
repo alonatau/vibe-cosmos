@@ -1101,12 +1101,306 @@ function paintStealth(ctx, palette) {
   ctx.fill();
 }
 
+function paintWestern(ctx, palette) {
+  // Sunset-orange sky → desert ground, mesas, cactus, tumbleweeds
+  const sky = ctx.createLinearGradient(0, 0, 0, SIZE * 0.7);
+  sky.addColorStop(0, rgb(palette[0]));
+  sky.addColorStop(0.55, rgb([1, 0.55, 0.2]));
+  sky.addColorStop(1, rgb([0.85, 0.35, 0.18]));
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, SIZE, SIZE * 0.7);
+  // Sun
+  const sun = ctx.createRadialGradient(SIZE * 0.32, SIZE * 0.55, 0, SIZE * 0.32, SIZE * 0.55, SIZE * 0.18);
+  sun.addColorStop(0, '#fff0a0');
+  sun.addColorStop(1, 'rgba(255, 200, 60, 0)');
+  ctx.fillStyle = sun;
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  ctx.fillStyle = '#ffe070';
+  ctx.beginPath();
+  ctx.arc(SIZE * 0.32, SIZE * 0.55, SIZE * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  // Mesas
+  ctx.fillStyle = rgb(palette[2]);
+  const mesas = [
+    [SIZE * 0.05, SIZE * 0.55, SIZE * 0.18, SIZE * 0.15],
+    [SIZE * 0.5, SIZE * 0.5, SIZE * 0.22, SIZE * 0.2],
+    [SIZE * 0.75, SIZE * 0.6, SIZE * 0.16, SIZE * 0.1],
+  ];
+  mesas.forEach(([x, y, w, h]) => {
+    ctx.fillRect(x, y, w, h);
+    // mesa top edge highlight
+    ctx.fillStyle = rgb([1, 0.5, 0.25], 0.4);
+    ctx.fillRect(x, y, w, 4);
+    ctx.fillStyle = rgb(palette[2]);
+  });
+  // Desert ground
+  const ground = ctx.createLinearGradient(0, SIZE * 0.7, 0, SIZE);
+  ground.addColorStop(0, rgb([0.85, 0.55, 0.32]));
+  ground.addColorStop(1, rgb([0.45, 0.25, 0.15]));
+  ctx.fillStyle = ground;
+  ctx.fillRect(0, SIZE * 0.7, SIZE, SIZE * 0.3);
+  // Cactus
+  ctx.fillStyle = '#2a4a25';
+  ctx.fillRect(SIZE * 0.7, SIZE * 0.55, 18, SIZE * 0.3);
+  ctx.fillRect(SIZE * 0.62, SIZE * 0.65, 26, 16);
+  ctx.fillRect(SIZE * 0.62, SIZE * 0.55, 18, SIZE * 0.12);
+  ctx.fillRect(SIZE * 0.71, SIZE * 0.7, 26, 16);
+  ctx.fillRect(SIZE * 0.79, SIZE * 0.6, 18, SIZE * 0.12);
+  // Tumbleweeds
+  const rng = seedRng(127);
+  for (let i = 0; i < 6; i++) {
+    const x = rng() * SIZE;
+    const y = SIZE * 0.85 + rng() * SIZE * 0.1;
+    ctx.fillStyle = '#7a5530';
+    ctx.beginPath();
+    ctx.arc(x, y, 7 + rng() * 7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function paintComics(ctx, palette) {
+  // Halftone background, thick black panel borders, speech bubble, POW! star, action lines
+  ctx.fillStyle = rgb(palette[1]);
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  // Halftone dots
+  for (let y = 0; y < SIZE; y += 14) {
+    for (let x = 0; x < SIZE; x += 14) {
+      const xx = x + (Math.floor(y / 14) % 2) * 7;
+      ctx.fillStyle = rgb(palette[0], 0.55);
+      ctx.beginPath();
+      ctx.arc(xx, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // Diagonal panel divider
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.moveTo(SIZE * 0.45, 0);
+  ctx.lineTo(SIZE * 0.55, 0);
+  ctx.lineTo(SIZE * 0.55, SIZE);
+  ctx.lineTo(SIZE * 0.45, SIZE);
+  ctx.closePath();
+  ctx.fill();
+  // POW! star (bottom-left panel)
+  ctx.fillStyle = rgb(palette[2]);
+  drawStarBurst(ctx, SIZE * 0.25, SIZE * 0.62, 95, 14);
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 6;
+  drawStarBurst(ctx, SIZE * 0.25, SIZE * 0.62, 95, 14, true);
+  // Action lines around POW
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 4;
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(SIZE * 0.25 + Math.cos(a) * 100, SIZE * 0.62 + Math.sin(a) * 100);
+    ctx.lineTo(SIZE * 0.25 + Math.cos(a) * 130, SIZE * 0.62 + Math.sin(a) * 130);
+    ctx.stroke();
+  }
+  // Speech bubble (right panel)
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(SIZE * 0.78, SIZE * 0.32, 70, 50, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.ellipse(SIZE * 0.78, SIZE * 0.32, 70, 50, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // Bubble tail
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.moveTo(SIZE * 0.72, SIZE * 0.38);
+  ctx.lineTo(SIZE * 0.62, SIZE * 0.5);
+  ctx.lineTo(SIZE * 0.78, SIZE * 0.42);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // Outer panel border
+  ctx.lineWidth = 10;
+  ctx.strokeStyle = '#000000';
+  ctx.strokeRect(0, 0, SIZE, SIZE);
+}
+
+function drawStarBurst(ctx, cx, cy, r, points = 12, strokeOnly = false) {
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const a = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+    const rr = i % 2 ? r : r * 0.55;
+    const x = cx + Math.cos(a) * rr;
+    const y = cy + Math.sin(a) * rr;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  if (strokeOnly) ctx.stroke();
+  else ctx.fill();
+}
+
+function paintCellShaded(ctx, palette) {
+  // Bold flat color regions with thick black outlines — Borderlands / WW vibe.
+  // Sky
+  ctx.fillStyle = rgb(palette[0]);
+  ctx.fillRect(0, 0, SIZE, SIZE * 0.55);
+  // Ground
+  ctx.fillStyle = rgb(palette[1]);
+  ctx.fillRect(0, SIZE * 0.55, SIZE, SIZE * 0.45);
+  // Distant hill
+  ctx.fillStyle = rgb(palette[2]);
+  ctx.beginPath();
+  ctx.arc(SIZE * 0.55, SIZE * 0.85, SIZE * 0.45, Math.PI, 0);
+  ctx.fill();
+  // Sun (flat disk)
+  ctx.fillStyle = '#ffe060';
+  ctx.beginPath();
+  ctx.arc(SIZE * 0.78, SIZE * 0.22, SIZE * 0.09, 0, Math.PI * 2);
+  ctx.fill();
+  // Cloud (lobed)
+  ctx.fillStyle = '#ffffff';
+  [
+    [SIZE * 0.22, SIZE * 0.18, 28],
+    [SIZE * 0.28, SIZE * 0.16, 22],
+    [SIZE * 0.34, SIZE * 0.18, 26],
+    [SIZE * 0.4, SIZE * 0.2, 20],
+  ].forEach(([x, y, r]) => {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  // Tree
+  ctx.fillStyle = '#2a4f28';
+  ctx.beginPath();
+  ctx.arc(SIZE * 0.18, SIZE * 0.6, 50, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#3a2818';
+  ctx.fillRect(SIZE * 0.165, SIZE * 0.6, 16, SIZE * 0.18);
+  // Thick black outlines on every shape
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 7;
+  // sun
+  ctx.beginPath();
+  ctx.arc(SIZE * 0.78, SIZE * 0.22, SIZE * 0.09, 0, Math.PI * 2);
+  ctx.stroke();
+  // hill
+  ctx.beginPath();
+  ctx.arc(SIZE * 0.55, SIZE * 0.85, SIZE * 0.45, Math.PI, 0);
+  ctx.stroke();
+  // tree
+  ctx.beginPath();
+  ctx.arc(SIZE * 0.18, SIZE * 0.6, 50, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeRect(SIZE * 0.165, SIZE * 0.6, 16, SIZE * 0.18);
+  // Horizon line
+  ctx.beginPath();
+  ctx.moveTo(0, SIZE * 0.55);
+  ctx.lineTo(SIZE, SIZE * 0.55);
+  ctx.stroke();
+}
+
+function paintSteampunk(ctx, palette) {
+  // Sepia/brass + interlocking gears + pipes + airship silhouette
+  const grad = ctx.createRadialGradient(SIZE / 2, SIZE / 2, 0, SIZE / 2, SIZE / 2, SIZE * 0.7);
+  grad.addColorStop(0, rgb(palette[1]));
+  grad.addColorStop(1, rgb(palette[2]));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  // Pipes (horizontal + vertical with elbows)
+  ctx.strokeStyle = '#5a3520';
+  ctx.lineWidth = 18;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0, SIZE * 0.85);
+  ctx.lineTo(SIZE * 0.7, SIZE * 0.85);
+  ctx.lineTo(SIZE * 0.7, SIZE * 0.55);
+  ctx.lineTo(SIZE, SIZE * 0.55);
+  ctx.stroke();
+  ctx.strokeStyle = '#3a2010';
+  ctx.lineWidth = 12;
+  ctx.beginPath();
+  ctx.moveTo(0, SIZE * 0.85);
+  ctx.lineTo(SIZE * 0.7, SIZE * 0.85);
+  ctx.lineTo(SIZE * 0.7, SIZE * 0.55);
+  ctx.lineTo(SIZE, SIZE * 0.55);
+  ctx.stroke();
+  // Gears — three interlocking
+  drawGear(ctx, SIZE * 0.32, SIZE * 0.48, 70, palette[0]);
+  drawGear(ctx, SIZE * 0.55, SIZE * 0.36, 50, palette[0]);
+  drawGear(ctx, SIZE * 0.5, SIZE * 0.62, 40, palette[0]);
+  // Airship silhouette in upper area
+  ctx.fillStyle = '#2a1808';
+  ctx.beginPath();
+  ctx.ellipse(SIZE * 0.78, SIZE * 0.18, 70, 28, -0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(SIZE * 0.74, SIZE * 0.18, 50, 12);
+  // Steam puffs
+  for (let i = 0; i < 4; i++) {
+    ctx.fillStyle = `rgba(220, 200, 170, ${0.5 - i * 0.1})`;
+    ctx.beginPath();
+    ctx.arc(SIZE * (0.85 + i * 0.04), SIZE * (0.22 + i * 0.02), 16 + i * 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawGear(ctx, cx, cy, r, color) {
+  const teeth = 12;
+  ctx.fillStyle = rgb(color);
+  ctx.beginPath();
+  for (let i = 0; i < teeth * 2; i++) {
+    const a = (i / (teeth * 2)) * Math.PI * 2;
+    const rr = i % 2 ? r * 1.18 : r;
+    const x = cx + Math.cos(a) * rr;
+    const y = cy + Math.sin(a) * rr;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  // Inner ring
+  ctx.fillStyle = `rgba(0, 0, 0, 0.35)`;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = rgb(color);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
+  ctx.fill();
+  // Center bolt
+  ctx.fillStyle = '#1a0e08';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+  // Spokes
+  ctx.strokeStyle = '#1a0e08';
+  ctx.lineWidth = 5;
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * r * 0.18, cy + Math.sin(a) * r * 0.18);
+    ctx.lineTo(cx + Math.cos(a) * r * 0.55, cy + Math.sin(a) * r * 0.55);
+    ctx.stroke();
+  }
+}
+
 // ---------- Painter registry ----------
 export const PAINTERS = {
-  landscape: paintLandscape,
+  // Art-style painters
   fantasy: paintFantasy,
-  soulslike: paintSoulslike,
   anime: paintAnime,
+  scifi: paintScifi,
+  western: paintWestern,
+  comics: paintComics,
+  cyberpunk: paintCyberpunk,
+  pixel: paintPixel,
+  voxel: paintVoxel,
+  cellshaded: paintCellShaded,
+  steampunk: paintSteampunk,
+  cozy: paintCozy,
+  horror: paintHorror,
+  noir: paintNoir,
+  cosmichorror: paintCosmicHorror,
+  // Game-scene painters (kept for future game-style drill-down)
+  landscape: paintLandscape,
+  soulslike: paintSoulslike,
   visualnovel: paintVisualNovel,
   mecha: paintMecha,
   fps: paintFPS,
@@ -1115,17 +1409,9 @@ export const PAINTERS = {
   runner: paintRunner,
   racing: paintRacing,
   platformer: paintPlatformer,
-  pixel: paintPixel,
   puzzle: paintPuzzle,
   strategy: paintStrategy,
-  voxel: paintVoxel,
-  scifi: paintScifi,
-  cyberpunk: paintCyberpunk,
-  horror: paintHorror,
-  cosmichorror: paintCosmicHorror,
-  noir: paintNoir,
   survival: paintSurvival,
-  cozy: paintCozy,
   postapoc: paintPostapoc,
   roguelike: paintRoguelike,
   sports: paintSports,

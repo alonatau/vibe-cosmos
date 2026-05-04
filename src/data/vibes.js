@@ -8,90 +8,39 @@
 // Modes 16–23: genre-specific (runner streaks, puzzle tiles, platformer dots,
 // sports stadium, strategy map, adventure landscape, stealth shadow, fighting
 // arena).
-// Each VIBE is one game-genre archetype. `painter` selects the canvas painter
-// that draws the orb's surface in that art-style + game-scene combination.
-// Palette tints the painter's output so variants look distinct while sharing
-// the same visual language.
+// 14 art-style orbs. Each is a pure visual style — fantasy, anime, sci-fi,
+// western, comics, etc. Game-style (genre) variation comes later in the
+// drill-down hierarchy. For this iteration the orbs answer: WHAT VISUAL
+// LANGUAGE does the user want their game in?
 export const VIBES = [
-  // ---------- Action / Adventure ----------
-  { id: 'adventure', painter: 'landscape', palette: [[0.95, 0.65, 0.35], [0.45, 0.7, 0.95], [0.25, 0.45, 0.3]], radius: 1.2,
-    tags: { genre: ['adventure'], style: ['painterly', 'stylized'], mood: ['epic', 'mysterious'], setting: ['fantasy', 'wilderness'] } },
-  { id: 'fantasy-rpg', painter: 'fantasy', palette: [[0.4, 0.95, 0.6], [0.95, 0.85, 0.55], [0.05, 0.15, 0.1]], radius: 1.25,
-    tags: { genre: ['rpg', 'adventure'], style: ['painterly'], mood: ['epic', 'magical'], setting: ['fantasy'] } },
-  { id: 'soulslike', painter: 'soulslike', palette: [[0.95, 0.45, 0.15], [0.7, 0.55, 0.4], [0.06, 0.05, 0.06]], radius: 1.2,
-    tags: { genre: ['action', 'rpg'], style: ['photoreal', 'gritty'], mood: ['dark', 'epic', 'tense'], setting: ['darkfantasy'] } },
-  { id: 'open-world', painter: 'landscape', palette: [[0.55, 0.85, 0.45], [0.35, 0.55, 0.95], [0.15, 0.3, 0.18]], radius: 1.2,
-    tags: { genre: ['adventure', 'rpg'], style: ['photoreal'], mood: ['epic', 'chill'], setting: ['fantasy', 'wilderness'] } },
-  { id: 'stealth-action', painter: 'stealth', palette: [[0.95, 0.85, 0.45], [0.45, 0.55, 0.7], [0.04, 0.05, 0.08]], radius: 1.0,
-    tags: { genre: ['action', 'stealth'], style: ['photoreal', 'cellshaded'], mood: ['tense', 'dark'], setting: ['modern', 'cyberpunk'] } },
-
-  // ---------- Anime / JRPG / Visual Novel ----------
-  { id: 'anime-rpg', painter: 'anime', palette: [[1.0, 0.7, 0.85], [0.85, 0.92, 1.0], [1.0, 0.96, 0.98]], radius: 1.1,
-    tags: { genre: ['rpg'], style: ['anime'], mood: ['cozy', 'whimsical'], setting: ['fantasy'] } },
-  { id: 'jrpg', painter: 'fantasy', palette: [[1.0, 0.78, 0.35], [0.95, 0.55, 0.75], [0.4, 0.25, 0.55]], radius: 1.05,
-    tags: { genre: ['rpg', 'turnbased'], style: ['anime'], mood: ['epic', 'whimsical'], setting: ['fantasy'] } },
-  { id: 'visual-novel', painter: 'visualnovel', palette: [[1.0, 0.7, 0.82], [0.95, 0.6, 0.75], [0.65, 0.4, 0.55]], radius: 0.9,
-    tags: { genre: ['visualnovel', 'narrative'], style: ['anime', 'painterly'], mood: ['romantic', 'melancholic'], setting: ['modern', 'fantasy'] } },
-  { id: 'mecha', painter: 'mecha', palette: [[0.95, 0.45, 0.15], [0.6, 0.7, 0.85], [0.1, 0.12, 0.18]], radius: 1.15,
-    tags: { genre: ['action', 'shooter'], style: ['anime', 'cellshaded'], mood: ['intense', 'kinetic'], setting: ['scifi', 'mecha'] } },
-
-  // ---------- Shooters / Combat ----------
-  { id: 'fps', painter: 'fps', palette: [[1.0, 0.2, 0.1], [0.5, 0.3, 0.25], [0.05, 0.04, 0.04]], radius: 1.2,
-    tags: { genre: ['fps', 'shooter', 'action'], style: ['photoreal', 'gritty'], mood: ['intense', 'dark', 'kinetic'], setting: ['modern', 'horror'] } },
-  { id: 'tactical-shooter', painter: 'tactical', palette: [[0.45, 0.85, 0.45], [0.65, 0.95, 0.55], [0.05, 0.1, 0.06]], radius: 1.05,
-    tags: { genre: ['shooter', 'action'], style: ['photoreal'], mood: ['tense', 'kinetic'], setting: ['modern', 'military'] } },
-  { id: 'arena-fighter', painter: 'fighting', palette: [[1.0, 0.35, 0.15], [1.0, 0.85, 0.3], [0.18, 0.08, 0.12]], radius: 1.1,
-    tags: { genre: ['fighting', 'action'], style: ['cellshaded', 'anime'], mood: ['intense', 'kinetic'], setting: ['arena', 'modern'] } },
-
-  // ---------- Speed / Arcade ----------
-  { id: 'endless-runner', painter: 'runner', palette: [[0.4, 0.9, 1.0], [1.0, 0.85, 0.3], [0.05, 0.1, 0.18]], radius: 1.0,
-    tags: { genre: ['runner', 'arcade'], style: ['cartoon', 'cellshaded'], mood: ['kinetic', 'bright'], setting: ['arcade', 'modern'] } },
-  { id: 'racing', painter: 'racing', palette: [[1.0, 0.55, 0.1], [1.0, 0.95, 0.3], [0.4, 0.5, 0.3]], radius: 1.0,
-    tags: { genre: ['racing', 'arcade'], style: ['photoreal', 'cellshaded'], mood: ['intense', 'kinetic'], setting: ['modern', 'arcade'] } },
-  { id: 'platformer', painter: 'platformer', palette: [[1.0, 0.4, 0.45], [0.4, 0.8, 1.0], [0.95, 0.85, 0.2]], radius: 0.95,
-    tags: { genre: ['platformer'], style: ['cartoon', 'cellshaded'], mood: ['bright', 'whimsical', 'kinetic'], setting: ['arcade', 'fantasy'] } },
-  { id: 'retro-arcade', painter: 'pixel', palette: [[0.3, 1.0, 0.4], [1.0, 0.85, 0.2], [0.0, 0.1, 0.0]], radius: 0.85,
-    tags: { genre: ['arcade', 'platformer'], style: ['pixel', 'retro'], mood: ['whimsical', 'kinetic'], setting: ['arcade'] } },
-
-  // ---------- Puzzle / Strategy ----------
-  { id: 'puzzle', painter: 'puzzle', palette: [[0.45, 0.85, 1.0], [1.0, 0.7, 0.45], [0.95, 0.55, 0.65]], radius: 0.9,
-    tags: { genre: ['puzzle'], style: ['minimal', 'lowpoly'], mood: ['chill', 'mysterious'], setting: ['abstract'] } },
-  { id: 'strategy', painter: 'strategy', palette: [[0.55, 0.85, 0.5], [0.85, 0.7, 0.4], [0.4, 0.6, 0.85]], radius: 1.1,
-    tags: { genre: ['strategy', 'simulation'], style: ['lowpoly', 'painterly'], mood: ['epic', 'chill'], setting: ['fantasy', 'historical'] } },
-  { id: 'sandbox-builder', painter: 'voxel', palette: [[0.55, 0.85, 0.5], [0.85, 0.65, 0.45], [0.35, 0.45, 0.25]], radius: 1.05,
-    tags: { genre: ['simulation', 'sandbox'], style: ['lowpoly', 'cartoon'], mood: ['chill', 'whimsical'], setting: ['modern', 'fantasy'] } },
-
-  // ---------- Sci-fi / Cyberpunk ----------
-  { id: 'scifi-exploration', painter: 'scifi', palette: [[0.5, 0.75, 1.0], [0.85, 0.6, 0.95], [0.02, 0.03, 0.1]], radius: 1.1,
-    tags: { genre: ['adventure', 'puzzle'], style: ['lowpoly', 'minimal'], mood: ['mysterious', 'chill'], setting: ['scifi', 'space'] } },
+  { id: 'fantasy', painter: 'fantasy', palette: [[0.4, 0.95, 0.6], [0.95, 0.85, 0.55], [0.05, 0.15, 0.1]], radius: 1.2,
+    tags: { style: ['fantasy', 'painterly'], mood: ['epic', 'magical'], setting: ['fantasy'] } },
+  { id: 'anime', painter: 'anime', palette: [[1.0, 0.7, 0.85], [0.85, 0.92, 1.0], [1.0, 0.96, 0.98]], radius: 1.1,
+    tags: { style: ['anime'], mood: ['whimsical', 'romantic'], setting: ['fantasy'] } },
+  { id: 'scifi', painter: 'scifi', palette: [[0.5, 0.75, 1.0], [0.85, 0.6, 0.95], [0.02, 0.03, 0.1]], radius: 1.15,
+    tags: { style: ['scifi', 'futuristic'], mood: ['mysterious', 'chill'], setting: ['space', 'scifi'] } },
+  { id: 'western', painter: 'western', palette: [[0.95, 0.55, 0.2], [1.0, 0.78, 0.4], [0.45, 0.25, 0.18]], radius: 1.15,
+    tags: { style: ['western', 'painterly'], mood: ['epic', 'melancholic'], setting: ['western', 'desert'] } },
+  { id: 'comics', painter: 'comics', palette: [[1.0, 0.85, 0.25], [0.95, 0.4, 0.4], [0.25, 0.55, 1.0]], radius: 1.05,
+    tags: { style: ['comics', 'stylized'], mood: ['kinetic', 'bright', 'whimsical'], setting: ['heroic'] } },
   { id: 'cyberpunk', painter: 'cyberpunk', palette: [[1.0, 0.15, 0.7], [0.2, 0.95, 0.95], [0.08, 0.02, 0.15]], radius: 1.15,
-    tags: { genre: ['rpg', 'action'], style: ['cellshaded'], mood: ['intense', 'dark'], setting: ['cyberpunk'] } },
-  { id: 'space-sim', painter: 'scifi', palette: [[0.85, 0.65, 0.95], [0.6, 0.85, 1.0], [0.0, 0.0, 0.06]], radius: 1.1,
-    tags: { genre: ['simulation', 'adventure'], style: ['photoreal', 'minimal'], mood: ['chill', 'mysterious'], setting: ['space', 'scifi'] } },
-
-  // ---------- Horror / Dark ----------
-  { id: 'horror-survival', painter: 'horror', palette: [[1.0, 0.18, 0.18], [0.55, 0.1, 0.12], [0.04, 0.03, 0.04]], radius: 1.05,
-    tags: { genre: ['horror', 'survival'], style: ['photoreal'], mood: ['dark', 'tense'], setting: ['modern'] } },
-  { id: 'cosmic-horror', painter: 'cosmichorror', palette: [[0.5, 0.85, 0.55], [0.45, 0.15, 0.55], [0.05, 0.0, 0.12]], radius: 1.15,
-    tags: { genre: ['horror', 'narrative'], style: ['painterly', 'abstract'], mood: ['mysterious', 'dark'], setting: ['cosmic', 'surreal'] } },
-  { id: 'noir-mystery', painter: 'noir', palette: [[0.85, 0.85, 0.95], [1.0, 0.55, 0.45], [0.05, 0.06, 0.1]], radius: 0.95,
-    tags: { genre: ['narrative', 'adventure'], style: ['cellshaded', 'stylized'], mood: ['mysterious', 'melancholic'], setting: ['noir', 'modern'] } },
-
-  // ---------- Survival / Sim ----------
-  { id: 'survival', painter: 'survival', palette: [[0.4, 0.65, 0.4], [0.65, 0.5, 0.3], [0.05, 0.1, 0.08]], radius: 1.05,
-    tags: { genre: ['survival', 'simulation'], style: ['photoreal', 'lowpoly'], mood: ['chill', 'tense'], setting: ['wilderness'] } },
-  { id: 'cozy-sim', painter: 'cozy', palette: [[0.65, 0.85, 0.55], [1.0, 0.85, 0.6], [0.85, 0.55, 0.45]], radius: 1.0,
-    tags: { genre: ['simulation', 'rpg'], style: ['cartoon', 'lowpoly'], mood: ['cozy', 'chill', 'whimsical'], setting: ['pastoral', 'fantasy'] } },
-  { id: 'postapoc', painter: 'postapoc', palette: [[0.85, 0.55, 0.3], [0.65, 0.5, 0.35], [0.18, 0.13, 0.1]], radius: 1.1,
-    tags: { genre: ['survival', 'action'], style: ['photoreal', 'gritty'], mood: ['dark', 'tense'], setting: ['postapoc'] } },
-
-  // ---------- Roguelike / Sports / MMO ----------
-  { id: 'roguelike', painter: 'roguelike', palette: [[0.95, 0.55, 0.2], [0.5, 0.3, 0.2], [0.1, 0.07, 0.06]], radius: 1.0,
-    tags: { genre: ['roguelike', 'action'], style: ['pixel', 'painterly'], mood: ['dark', 'tense', 'kinetic'], setting: ['darkfantasy', 'fantasy'] } },
-  { id: 'sports', painter: 'sports', palette: [[0.95, 0.85, 0.3], [0.3, 0.85, 0.45], [0.4, 0.55, 0.85]], radius: 1.05,
-    tags: { genre: ['sports'], style: ['photoreal', 'cellshaded'], mood: ['intense', 'kinetic', 'bright'], setting: ['arena', 'modern'] } },
-  { id: 'mmorpg', painter: 'fantasy', palette: [[0.7, 0.5, 0.95], [0.95, 0.7, 0.4], [0.1, 0.1, 0.2]], radius: 1.2,
-    tags: { genre: ['rpg', 'mmo'], style: ['painterly', 'cellshaded'], mood: ['epic', 'whimsical'], setting: ['fantasy'] } },
+    tags: { style: ['cyberpunk', 'cellshaded'], mood: ['intense', 'dark'], setting: ['cyberpunk'] } },
+  { id: 'pixel', painter: 'pixel', palette: [[0.3, 1.0, 0.4], [1.0, 0.85, 0.2], [0.05, 0.1, 0.05]], radius: 0.95,
+    tags: { style: ['pixel', 'retro'], mood: ['whimsical', 'kinetic'], setting: ['arcade'] } },
+  { id: 'voxel', painter: 'voxel', palette: [[0.55, 0.85, 0.5], [0.85, 0.65, 0.45], [0.35, 0.45, 0.25]], radius: 1.1,
+    tags: { style: ['voxel', 'lowpoly'], mood: ['chill', 'whimsical'], setting: ['fantasy', 'pastoral'] } },
+  { id: 'cellshaded', painter: 'cellshaded', palette: [[0.45, 0.78, 1.0], [0.55, 0.85, 0.45], [0.4, 0.3, 0.6]], radius: 1.05,
+    tags: { style: ['cellshaded', 'cartoon'], mood: ['bright', 'whimsical'], setting: ['fantasy', 'modern'] } },
+  { id: 'steampunk', painter: 'steampunk', palette: [[0.95, 0.65, 0.25], [0.75, 0.5, 0.25], [0.18, 0.1, 0.05]], radius: 1.1,
+    tags: { style: ['steampunk', 'painterly'], mood: ['epic', 'mysterious'], setting: ['victorian'] } },
+  { id: 'cozy', painter: 'cozy', palette: [[0.65, 0.85, 0.55], [1.0, 0.85, 0.6], [0.85, 0.55, 0.45]], radius: 1.0,
+    tags: { style: ['cozy', 'cartoon'], mood: ['cozy', 'chill', 'whimsical'], setting: ['pastoral'] } },
+  { id: 'horror', painter: 'horror', palette: [[1.0, 0.18, 0.18], [0.55, 0.1, 0.12], [0.04, 0.03, 0.04]], radius: 1.0,
+    tags: { style: ['horror', 'photoreal'], mood: ['dark', 'tense'], setting: ['horror'] } },
+  { id: 'noir', painter: 'noir', palette: [[0.85, 0.85, 0.95], [1.0, 0.55, 0.45], [0.05, 0.06, 0.1]], radius: 0.95,
+    tags: { style: ['noir', 'monochrome'], mood: ['mysterious', 'melancholic'], setting: ['noir', 'modern'] } },
+  { id: 'cosmic', painter: 'cosmichorror', palette: [[0.5, 0.85, 0.55], [0.45, 0.15, 0.55], [0.05, 0.0, 0.12]], radius: 1.15,
+    tags: { style: ['cosmic', 'painterly'], mood: ['mysterious', 'dark'], setting: ['cosmic', 'surreal'] } },
 ];
 
 // ---------- Tag-similarity & variant generation ----------
@@ -216,7 +165,10 @@ export function variantsOf(base, count, sessionKey, depth = 1) {
   const similarityScale = Math.pow(0.85, Math.max(0, depth - 1));
   const cousins = topCousins(base, Math.max(count + 4, 12));
 
-  const cousinCount = Math.min(cousins.length, Math.max(2, Math.floor(count * 0.7)));
+  // For art-style focus, prefer flavor variants of the picked style — same
+  // painter, palette-shifted — so the user explores variations within their
+  // chosen style. A handful of cousins still appear to allow pivoting.
+  const cousinCount = Math.min(cousins.length, Math.max(1, Math.floor(count * 0.35)));
   const flavorCount = count - cousinCount;
 
   // Cousin variants — different game types in the focus's tag neighbourhood.
