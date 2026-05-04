@@ -190,6 +190,94 @@ export const fragmentShader = /* glsl */ `
       vec3 base = mix(uPalette[2], uPalette[0], fog);
       col = base + uPalette[1] * light * 0.5;
     }
+    // ---------- New genre-specific modes ----------
+    else if(uMode == 16){ // endless-runner — fast forward streaks
+      float streakSpeed = 5.0;
+      float streak = sin(P.x * 2.5 + t * streakSpeed) * 0.5 + 0.5;
+      streak = pow(streak, 6.0);
+      float band = smoothstep(0.9, 0.2, abs(P.y) * 1.2);
+      streak *= band;
+      vec3 base = mix(uPalette[2], uPalette[0], 0.3 + 0.5 * band);
+      col = base + uPalette[1] * streak * 1.6;
+      // motion lines crossing
+      col += uPalette[0] * pow(sin(P.x * 8.0 + t * 8.0) * 0.5 + 0.5, 12.0) * 0.5;
+    }
+    else if(uMode == 17){ // puzzle — clean geometric tile grid
+      vec2 g2 = vUv * 6.0;
+      vec2 cell = floor(g2);
+      vec2 cf = fract(g2);
+      float n = hash(vec3(cell, 0.0));
+      float border = step(0.92, max(cf.x, cf.y)) + step(cf.x, 0.08) + step(cf.y, 0.08);
+      float hi = step(0.5, n + 0.2 * sin(t + n * 6.28));
+      vec3 tile = mix(uPalette[2], uPalette[0], hi);
+      col = mix(tile, uPalette[1], min(border, 1.0) * 0.55);
+    }
+    else if(uMode == 18){ // platformer — bouncing primary dots on a layered field
+      vec2 g3 = vUv * 5.0;
+      vec2 cell = floor(g3);
+      vec2 cf = fract(g3);
+      float n = hash(vec3(cell, 0.0));
+      float bounce = abs(sin(t * 2.5 + n * 6.28));
+      vec2 ballPos = vec2(0.5, 0.25 + bounce * 0.5);
+      float ball = smoothstep(0.18, 0.06, length(cf - ballPos));
+      vec3 ballC = mix(uPalette[0], uPalette[1], n);
+      col = mix(uPalette[2] * 0.6, ballC, ball);
+      // ground stripe
+      col = mix(col, uPalette[2] * 1.4, smoothstep(0.18, 0.0, vUv.y));
+    }
+    else if(uMode == 19){ // sports — stadium gradient + crowd
+      float sky = smoothstep(0.0, 1.0, vUv.y);
+      vec3 base = mix(uPalette[2] * 0.6, uPalette[1] * 1.1, sky);
+      float crowd = pow(vnoise(vec3(vUv * 28.0, t * 0.3)), 0.4);
+      col = mix(base, uPalette[0], crowd * 0.45);
+      // turf glow at the bottom
+      col += uPalette[0] * smoothstep(0.25, 0.0, vUv.y) * 0.5;
+    }
+    else if(uMode == 20){ // strategy — top-down grid map with regions
+      vec2 g4 = vUv * 6.0;
+      vec2 cell = floor(g4);
+      vec2 cf = fract(g4);
+      vec2 region = floor(cell / 2.0);
+      float regNoise = hash(vec3(region, 0.0));
+      float lines = step(0.93, max(cf.x, cf.y)) + step(cf.x, 0.07) + step(cf.y, 0.07);
+      vec3 land = mix(uPalette[0], uPalette[1], regNoise);
+      // unit dots at region centers, pulsing
+      vec2 unitPos = vec2(0.5);
+      float unit = smoothstep(0.16, 0.06, length(cf - unitPos)) * (0.5 + 0.5 * sin(t * 2.0 + regNoise * 6.28));
+      col = mix(land, uPalette[2], min(lines, 1.0) * 0.6);
+      col += uPalette[2] * unit * 0.8;
+    }
+    else if(uMode == 21){ // adventure — open landscape: sky + horizon + terrain
+      float terrainHeight = 0.42 + sin(vUv.x * 6.0 + t * 0.15) * 0.05 + sin(vUv.x * 12.0 - t * 0.3) * 0.02;
+      float horizon = smoothstep(terrainHeight - 0.02, terrainHeight + 0.02, vUv.y);
+      // sky gradient
+      vec3 sky = mix(uPalette[1], uPalette[0], smoothstep(terrainHeight, 1.0, vUv.y));
+      // terrain with fbm texture
+      float groundN = fbm(vec3(vUv * 8.0, t * 0.1));
+      vec3 terrain = mix(uPalette[2], uPalette[2] * 1.4 + uPalette[0] * 0.2, groundN);
+      col = mix(terrain, sky, horizon);
+      // sun/atmospheric glow
+      vec2 sun = vec2(0.7, 0.78);
+      float sunGlow = smoothstep(0.18, 0.0, length(vUv - sun));
+      col += uPalette[0] * sunGlow * 0.7;
+    }
+    else if(uMode == 22){ // stealth — shadow gradient with light pools
+      float shadow = pow(1.0 - smoothstep(0.0, 1.5, length(P.xy + vec2(sin(t * 0.3), cos(t * 0.4)) * 0.5)), 2.0);
+      vec3 base = mix(uPalette[2], uPalette[0], shadow);
+      // wandering light pool
+      vec2 lightPos = vec2(sin(t * 0.5) * 0.4, cos(t * 0.4) * 0.4);
+      float pool = smoothstep(0.4, 0.0, length(P.xy - lightPos));
+      col = base + uPalette[1] * pool * 0.7;
+    }
+    else if(uMode == 23){ // fighting — clash/impact pulses + arena
+      float pulse = pow(0.5 + 0.5 * sin(t * 4.0), 4.0);
+      float r2 = length(P.xy);
+      float ringEnergy = smoothstep(0.6, 0.55, abs(r2 - 0.6 + sin(t * 1.5) * 0.1));
+      vec3 base = mix(uPalette[2], uPalette[0], smoothstep(1.0, 0.0, r2));
+      col = base + uPalette[1] * ringEnergy * pulse * 1.5;
+      // impact flash at center
+      col += uPalette[0] * pow(smoothstep(0.3, 0.0, r2), 4.0) * pulse;
+    }
 
     return col;
   }
