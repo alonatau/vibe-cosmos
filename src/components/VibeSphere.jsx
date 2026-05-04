@@ -40,17 +40,14 @@ export default function VibeSphere({
     return () => window.clearTimeout(t);
   }, [dissolve, dissolveDelay]);
 
-  // Build per-instance uniforms. Axis values normalize from -2..+2 → -1..+1.
+  // Build per-instance uniforms. Each vibe selects one of 16 shader modes.
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
       uHover: { value: 0 },
       uSelected: { value: 0 },
       uCompletion: { value: 0 },
-      uComplexity: { value: (vibe.scores?.complexity ?? 0) / 2 },
-      uOrder: { value: (vibe.scores?.order ?? 0) / 2 },
-      uEnergy: { value: (vibe.scores?.energy ?? 0) / 2 },
-      uSoftness: { value: (vibe.scores?.softness ?? 0) / 2 },
+      uMode: { value: vibe.mode },
       uPalette: {
         value: vibe.palette.map((c) => new THREE.Color(c[0], c[1], c[2])),
       },
