@@ -9,11 +9,11 @@ import CompletionOverlay from './CompletionOverlay.jsx';
 import { VIBES, variantsOf } from '../data/vibes.js';
 import { getInsight } from '../data/scoring.js';
 
-const SLOT_COUNT = 14;
+const SLOT_COUNT = 18;
 
-// Active sphere count per drill-depth. At depth 3 (3 spheres) the next click
-// commits to the chosen one — terminal state with just the focused sphere.
-const COUNT_SEQUENCE = [14, 8, 5, 3, 1];
+// Active sphere count per drill-depth — more options along the way means more
+// signal in the path. Five clicks to a chosen stimulus.
+const COUNT_SEQUENCE = [18, 13, 9, 6, 3, 1];
 function activeCountForDepth(depth) {
   if (depth <= 0) return COUNT_SEQUENCE[0];
   return COUNT_SEQUENCE[Math.min(depth, COUNT_SEQUENCE.length - 1)];
