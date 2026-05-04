@@ -1,7 +1,21 @@
 import { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import * as THREE from 'three';
+import {
+  Mountain, Sword, Shield, Globe, EyeOff, Sparkles, Crown, BookOpen, Bot,
+  Crosshair, Target, Swords, Zap, Car, Gamepad2, Joystick, Puzzle, Brain,
+  Boxes, Telescope, Cpu, Rocket, Skull, Eye, Search, Tent, Sprout, Castle,
+  Trophy, Users,
+} from 'lucide-react';
 import { vertexShader, fragmentShader } from '../shaders/vibe.js';
+
+const ICONS = {
+  Mountain, Sword, Shield, Globe, EyeOff, Sparkles, Crown, BookOpen, Bot,
+  Crosshair, Target, Swords, Zap, Car, Gamepad2, Joystick, Puzzle, Brain,
+  Boxes, Telescope, Cpu, Rocket, Skull, Eye, Search, Tent, Sprout, Castle,
+  Trophy, Users,
+};
 
 export default function VibeSphere({
   vibe,
@@ -172,6 +186,10 @@ export default function VibeSphere({
     meshRef.current.rotation.x += delta * (0.02 + spinBoost * 0.4);
   });
 
+  // Look up the lucide icon component for this vibe (fallback: empty)
+  const IconComp = vibe.icon ? ICONS[vibe.icon] : null;
+  const showIcon = active && !completing && opacityRef.current > 0.05;
+
   return (
     <mesh
       ref={meshRef}
@@ -196,6 +214,18 @@ export default function VibeSphere({
         uniforms={uniforms}
         transparent={false}
       />
+      {showIcon && IconComp && (
+        <Html
+          center
+          zIndexRange={[10, 0]}
+          style={{ pointerEvents: 'none' }}
+        >
+          <div className={`vibe-icon${hovered ? ' is-hover' : ''}${isFocused ? ' is-focus' : ''}`}>
+            <IconComp size={36} strokeWidth={1.5} />
+            <div className="vibe-label">{vibe.label}</div>
+          </div>
+        </Html>
+      )}
     </mesh>
   );
 }
