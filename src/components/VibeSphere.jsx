@@ -1,21 +1,8 @@
 import { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
 import * as THREE from 'three';
-import {
-  Mountain, Sword, Shield, Globe, EyeOff, Sparkles, Crown, BookOpen, Bot,
-  Crosshair, Target, Swords, Zap, Car, Gamepad2, Joystick, Puzzle, Brain,
-  Boxes, Telescope, Cpu, Rocket, Skull, Eye, Search, Tent, Sprout, Castle,
-  Trophy, Users,
-} from 'lucide-react';
 import { vertexShader, fragmentShader } from '../shaders/vibe.js';
-
-const ICONS = {
-  Mountain, Sword, Shield, Globe, EyeOff, Sparkles, Crown, BookOpen, Bot,
-  Crosshair, Target, Swords, Zap, Car, Gamepad2, Joystick, Puzzle, Brain,
-  Boxes, Telescope, Cpu, Rocket, Skull, Eye, Search, Tent, Sprout, Castle,
-  Trophy, Users,
-};
+import { paintToCanvas } from '../data/painters.js';
 
 export default function VibeSphere({
   vibe,
@@ -54,20 +41,42 @@ export default function VibeSphere({
     return () => window.clearTimeout(t);
   }, [dissolve, dissolveDelay]);
 
-  // Build per-instance uniforms. Each vibe selects one of 16 shader modes.
+  // Render the painter to a canvas → THREE.CanvasTexture for this vibe.
+  const texture = useMemo(() => {
+    const canvas = paintToCanvas(vibe.painter, vibe.palette);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    tex.needsUpdate = true;
+    return tex;
+  }, [vibe.painter, vibe.palette]);
+
+  useEffect(() => () => texture.dispose?.(), [texture]);
+
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
       uHover: { value: 0 },
       uSelected: { value: 0 },
       uCompletion: { value: 0 },
-      uMode: { value: vibe.mode },
-      uPalette: {
-        value: vibe.palette.map((c) => new THREE.Color(c[0], c[1], c[2])),
+      uTexture: { value: texture },
+      uTintRim: {
+        value: new THREE.Color(
+          vibe.palette[0][0] * 0.6 + 0.4,
+          vibe.palette[0][1] * 0.6 + 0.4,
+          vibe.palette[0][2] * 0.6 + 0.4
+        ),
       },
     }),
-    [vibe]
+    [texture, vibe.palette]
   );
+
+  // Keep texture uniform in sync if the vibe data changes (variant swap)
+  useEffect(() => {
+    if (matRef.current) {
+      matRef.current.uniforms.uTexture.value = texture;
+    }
+  }, [texture]);
 
   const completionRef = useRef(0); // local timer in seconds since completion started
   const completionGlow = useRef(0);
@@ -186,10 +195,6 @@ export default function VibeSphere({
     meshRef.current.rotation.x += delta * (0.02 + spinBoost * 0.4);
   });
 
-  // Look up the lucide icon component for this vibe (fallback: empty)
-  const IconComp = vibe.icon ? ICONS[vibe.icon] : null;
-  const showIcon = active && !completing && opacityRef.current > 0.05;
-
   return (
     <mesh
       ref={meshRef}
@@ -206,7 +211,7 @@ export default function VibeSphere({
       }}
       scale={0.001}
     >
-      <icosahedronGeometry args={[vibe.radius, 64]} />
+      <sphereGeometry args={[vibe.radius, 48, 36]} />
       <shaderMaterial
         ref={matRef}
         vertexShader={vertexShader}
@@ -214,18 +219,6 @@ export default function VibeSphere({
         uniforms={uniforms}
         transparent={false}
       />
-      {showIcon && IconComp && (
-        <Html
-          center
-          zIndexRange={[10, 0]}
-          style={{ pointerEvents: 'none' }}
-        >
-          <div className={`vibe-icon${hovered ? ' is-hover' : ''}${isFocused ? ' is-focus' : ''}`}>
-            <IconComp size={36} strokeWidth={1.5} />
-            <div className="vibe-label">{vibe.label}</div>
-          </div>
-        </Html>
-      )}
     </mesh>
   );
 }
