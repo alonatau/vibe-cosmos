@@ -1,4 +1,19 @@
-// Each vibe is a unique aesthetic world. Shader mode + palette + tags drive look and similarity.
+// Each vibe is a unique aesthetic world. Shader mode + palette + tags drive
+// look and similarity; `scores` drives the personality reveal at the end.
+//
+// Score axes (each -2 to +2). Grounded in replicated findings, NOT folk hue→trait
+// claims (those don't replicate — see Lüscher critique, Wilms & Oberfeld 2018):
+//   openness:  preference for complexity/novelty/abstraction
+//              (Openness×complexity is THE most replicated personality-aesthetics
+//              link — Silvia 2007, Fayn 2015)
+//   intensity: arousal-seeking via saturation/contrast
+//              (Valdez & Mehrabian 1994 — saturation drives arousal)
+//   darkness:  preference for dark/decay/horror motifs
+//              (Scrivner 2021 morbid curiosity scale; normally distributed,
+//              not pathological)
+//   structure: order/geometric vs organic/chaotic
+//              (Spehar et al. 2016 fractal preference + Conscientiousness×design;
+//              weakest of the four but design-useful)
 export const VIBES = [
   {
     id: 'anime',
@@ -6,6 +21,7 @@ export const VIBES = [
     palette: [[1.0, 0.75, 0.85], [0.55, 0.85, 1.0], [1.0, 0.95, 0.98]],
     tags: ['anime', 'pastel', 'stylized', 'japanese', 'soft'],
     radius: 1.1,
+    scores: { openness: 1, intensity: -1, darkness: -2, structure: -1 },
   },
   {
     id: 'jrpg',
@@ -13,6 +29,7 @@ export const VIBES = [
     palette: [[1.0, 0.78, 0.35], [0.95, 0.55, 0.75], [0.4, 0.25, 0.55]],
     tags: ['anime', 'fantasy', 'japanese', 'narrative', 'magical'],
     radius: 1.05,
+    scores: { openness: 1, intensity: 0, darkness: -1, structure: -1 },
   },
   {
     id: 'mecha',
@@ -20,6 +37,7 @@ export const VIBES = [
     palette: [[0.95, 0.45, 0.15], [0.6, 0.7, 0.85], [0.1, 0.12, 0.18]],
     tags: ['anime', 'scifi', 'industrial', 'japanese', 'mechanical'],
     radius: 1.2,
+    scores: { openness: 1, intensity: 1, darkness: 0, structure: 2 },
   },
   {
     id: 'visualnovel',
@@ -27,6 +45,7 @@ export const VIBES = [
     palette: [[1.0, 0.85, 0.92], [0.95, 0.6, 0.75], [0.7, 0.4, 0.6]],
     tags: ['anime', 'narrative', 'pastel', 'romance', 'soft'],
     radius: 0.85,
+    scores: { openness: 0, intensity: -2, darkness: -2, structure: -1 },
   },
   {
     id: 'doom',
@@ -34,6 +53,7 @@ export const VIBES = [
     palette: [[1.0, 0.15, 0.05], [0.4, 0.05, 0.0], [0.05, 0.02, 0.02]],
     tags: ['horror', 'violent', 'dark', 'fps', 'industrial'],
     radius: 1.3,
+    scores: { openness: 0, intensity: 2, darkness: 2, structure: 0 },
   },
   {
     id: 'horror',
@@ -41,6 +61,7 @@ export const VIBES = [
     palette: [[0.55, 0.05, 0.08], [0.15, 0.02, 0.04], [0.0, 0.0, 0.0]],
     tags: ['horror', 'dark', 'atmospheric', 'tense'],
     radius: 1.0,
+    scores: { openness: 0, intensity: 1, darkness: 2, structure: -1 },
   },
   {
     id: 'cosmichorror',
@@ -48,6 +69,7 @@ export const VIBES = [
     palette: [[0.35, 0.1, 0.5], [0.1, 0.0, 0.2], [0.6, 0.8, 0.5]],
     tags: ['horror', 'dark', 'atmospheric', 'weird', 'narrative'],
     radius: 1.15,
+    scores: { openness: 2, intensity: 0, darkness: 2, structure: -2 },
   },
   {
     id: 'soulslike',
@@ -55,6 +77,7 @@ export const VIBES = [
     palette: [[0.5, 0.5, 0.55], [0.95, 0.45, 0.15], [0.08, 0.06, 0.08]],
     tags: ['dark', 'violent', 'atmospheric', 'challenging', 'fantasy'],
     radius: 1.2,
+    scores: { openness: 1, intensity: 1, darkness: 2, structure: 0 },
   },
   {
     id: 'mystery',
@@ -62,6 +85,7 @@ export const VIBES = [
     palette: [[0.2, 0.25, 0.6], [0.55, 0.4, 0.85], [0.05, 0.08, 0.2]],
     tags: ['narrative', 'atmospheric', 'dark', 'thoughtful'],
     radius: 0.95,
+    scores: { openness: 1, intensity: -1, darkness: 1, structure: -1 },
   },
   {
     id: 'noir',
@@ -69,6 +93,7 @@ export const VIBES = [
     palette: [[0.45, 0.55, 0.75], [0.85, 0.85, 0.95], [0.05, 0.06, 0.1]],
     tags: ['narrative', 'atmospheric', 'dark', 'stylized', 'thoughtful'],
     radius: 0.9,
+    scores: { openness: 1, intensity: -1, darkness: 1, structure: 0 },
   },
   {
     id: 'fantasy',
@@ -76,6 +101,7 @@ export const VIBES = [
     palette: [[0.2, 0.95, 0.55], [0.4, 0.85, 0.7], [0.05, 0.2, 0.15]],
     tags: ['fantasy', 'narrative', 'magical', 'soft'],
     radius: 1.25,
+    scores: { openness: 1, intensity: 0, darkness: -1, structure: -2 },
   },
   {
     id: 'scifi',
@@ -83,6 +109,7 @@ export const VIBES = [
     palette: [[0.4, 0.75, 1.0], [0.85, 0.9, 1.0], [0.05, 0.1, 0.2]],
     tags: ['scifi', 'futuristic', 'mechanical'],
     radius: 1.1,
+    scores: { openness: 1, intensity: 0, darkness: 0, structure: 1 },
   },
   {
     id: 'cyberpunk',
@@ -90,6 +117,7 @@ export const VIBES = [
     palette: [[1.0, 0.15, 0.7], [0.2, 0.95, 0.95], [0.08, 0.02, 0.15]],
     tags: ['scifi', 'futuristic', 'neon', 'dystopian', 'stylized'],
     radius: 1.15,
+    scores: { openness: 2, intensity: 2, darkness: 1, structure: 1 },
   },
   {
     id: 'postapoc',
@@ -97,6 +125,7 @@ export const VIBES = [
     palette: [[0.85, 0.5, 0.25], [0.45, 0.3, 0.2], [0.15, 0.1, 0.08]],
     tags: ['dystopian', 'rust', 'survival', 'dark', 'atmospheric'],
     radius: 1.1,
+    scores: { openness: 0, intensity: 0, darkness: 1, structure: -1 },
   },
   {
     id: 'survival',
@@ -104,6 +133,7 @@ export const VIBES = [
     palette: [[0.25, 0.55, 0.35], [0.55, 0.7, 0.4], [0.05, 0.1, 0.08]],
     tags: ['survival', 'atmospheric', 'rust'],
     radius: 1.0,
+    scores: { openness: 0, intensity: 0, darkness: 0, structure: -1 },
   },
   {
     id: 'racing',
@@ -111,6 +141,7 @@ export const VIBES = [
     palette: [[1.0, 0.55, 0.1], [1.0, 0.95, 0.3], [0.1, 0.05, 0.0]],
     tags: ['arcade', 'fast', 'stylized'],
     radius: 0.95,
+    scores: { openness: -1, intensity: 2, darkness: -1, structure: 0 },
   },
   {
     id: 'puzzle',
@@ -118,6 +149,7 @@ export const VIBES = [
     palette: [[0.5, 0.85, 1.0], [1.0, 1.0, 1.0], [0.1, 0.15, 0.25]],
     tags: ['geometric', 'minimal', 'thoughtful'],
     radius: 0.8,
+    scores: { openness: 0, intensity: -1, darkness: -1, structure: 2 },
   },
   {
     id: 'retro',
@@ -125,6 +157,7 @@ export const VIBES = [
     palette: [[0.3, 1.0, 0.4], [1.0, 0.85, 0.2], [0.0, 0.1, 0.0]],
     tags: ['arcade', 'pixel', 'nostalgic', 'stylized'],
     radius: 0.85,
+    scores: { openness: -1, intensity: 0, darkness: 0, structure: 2 },
   },
   {
     id: 'platformer',
@@ -132,6 +165,7 @@ export const VIBES = [
     palette: [[0.95, 0.4, 0.4], [0.3, 0.7, 1.0], [1.0, 0.9, 0.3]],
     tags: ['arcade', 'stylized', 'soft'],
     radius: 0.9,
+    scores: { openness: -1, intensity: 1, darkness: -2, structure: 0 },
   },
   {
     id: 'roguelike',
@@ -139,6 +173,7 @@ export const VIBES = [
     palette: [[0.95, 0.55, 0.2], [0.4, 0.2, 0.1], [0.05, 0.03, 0.03]],
     tags: ['challenging', 'dark', 'fantasy', 'atmospheric'],
     radius: 1.0,
+    scores: { openness: 1, intensity: 0, darkness: 2, structure: 0 },
   },
 ];
 
@@ -212,12 +247,52 @@ export function mutateVibe(base, seedKey, intensity = 0.25, strategy = 'mixed') 
   ]);
 
   let mode = base.mode;
+  let scores = base.scores;
+  // Score propagation: pattern variants take on the cousin's score signature
+  // (a different aesthetic family is the whole point of the swap). Color and
+  // mixed variants stay anchored to the base; minor palette-driven adjustment
+  // applied below.
   if (forceModeSwap) {
     const cousins = topCousins(base, 6);
-    if (cousins.length) mode = cousins[Math.floor(rng() * cousins.length)].mode;
+    if (cousins.length) {
+      const picked = cousins[Math.floor(rng() * cousins.length)];
+      mode = picked.mode;
+      scores = picked.scores;
+    }
   } else if (strategy === 'mixed' && rng() < 0.18) {
     const cousins = topCousins(base, 4);
-    if (cousins.length) mode = cousins[Math.floor(rng() * cousins.length)].mode;
+    if (cousins.length) {
+      const picked = cousins[Math.floor(rng() * cousins.length)];
+      mode = picked.mode;
+      // Mixed swap blends scores half-and-half toward the cousin
+      scores = {
+        openness: Math.round((base.scores.openness + picked.scores.openness) / 2),
+        intensity: Math.round((base.scores.intensity + picked.scores.intensity) / 2),
+        darkness: Math.round((base.scores.darkness + picked.scores.darkness) / 2),
+        structure: Math.round((base.scores.structure + picked.scores.structure) / 2),
+      };
+    }
+  }
+
+  // Color variants: nudge intensity/darkness based on actual palette shift
+  // (Valdez-Mehrabian — saturation drives arousal; brightness drives valence).
+  if (strategy === 'color') {
+    const primary = palette[0];
+    const brightness = (primary[0] + primary[1] + primary[2]) / 3;
+    const saturation = Math.max(...primary) - Math.min(...primary);
+    const basePrimary = base.palette[0];
+    const baseBrightness =
+      (basePrimary[0] + basePrimary[1] + basePrimary[2]) / 3;
+    const baseSaturation =
+      Math.max(...basePrimary) - Math.min(...basePrimary);
+    const dB = brightness - baseBrightness; // positive = brighter
+    const dS = saturation - baseSaturation; // positive = more saturated
+    scores = {
+      openness: scores.openness,
+      intensity: Math.max(-2, Math.min(2, scores.intensity + Math.sign(dS) * (Math.abs(dS) > 0.15 ? 1 : 0))),
+      darkness: Math.max(-2, Math.min(2, scores.darkness - Math.sign(dB) * (Math.abs(dB) > 0.15 ? 1 : 0))),
+      structure: scores.structure,
+    };
   }
 
   const radius = Math.max(
@@ -230,6 +305,7 @@ export function mutateVibe(base, seedKey, intensity = 0.25, strategy = 'mixed') 
     palette,
     tags: [...base.tags],
     radius,
+    scores,
   };
 }
 

@@ -1,73 +1,65 @@
 import { useEffect, useState } from 'react';
 
-const MAIN = 'Playo will now generate your game';
-const SUB = 'Based on your vibe';
+const FOOTER = 'generating your game';
 
-// Phase-driven HTML overlay: white flash at supernova peak, typewriter
-// reveal of the headline, looping dots while "thinking", then subtitle, then
-// a faint restart hint. Times below are relative to the moment `active` flips on.
-export default function CompletionOverlay({ active }) {
-  const [mainShown, setMainShown] = useState(0);
-  const [subShown, setSubShown] = useState(0);
-  const [dotCount, setDotCount] = useState(0);
+// Phased reveal: white flash at the supernova peak, then headline → body →
+// citation chip → footer. Each layer is keyed off the same `active` timer so
+// they cascade. `insight` carries { headline, body, anchor } from scoring.js.
+export default function CompletionOverlay({ active, insight }) {
+  const [headlineShown, setHeadlineShown] = useState(0);
+  const [bodyVisible, setBodyVisible] = useState(false);
+  const [anchorVisible, setAnchorVisible] = useState(false);
+  const [footerShown, setFooterShown] = useState(0);
   const [flashing, setFlashing] = useState(false);
   const [showRestart, setShowRestart] = useState(false);
-  const [glowing, setGlowing] = useState(false);
 
   useEffect(() => {
-    if (!active) {
-      setMainShown(0);
-      setSubShown(0);
-      setDotCount(0);
+    if (!active || !insight) {
+      setHeadlineShown(0);
+      setBodyVisible(false);
+      setAnchorVisible(false);
+      setFooterShown(0);
       setFlashing(false);
       setShowRestart(false);
-      setGlowing(false);
       return;
     }
 
     const timers = [];
     const push = (fn, t) => timers.push(window.setTimeout(fn, t));
 
-    // White flash at the supernova peak (matches sphere's burst beat)
+    // White flash at the supernova peak (matches sphere's burst beat ~1.95s)
     push(() => setFlashing(true), 1900);
     push(() => setFlashing(false), 2500);
 
-    // Headline typewriter — characters appear ~38ms apart
-    const mainStart = 2300;
-    const mainStep = 38;
-    for (let i = 1; i <= MAIN.length; i++) {
-      push(() => setMainShown(i), mainStart + i * mainStep);
+    // Headline typewriter — characters appear with chromatic-glitch animation
+    const headline = insight.headline;
+    const headlineStart = 2300;
+    const headlineStep = 42;
+    for (let i = 1; i <= headline.length; i++) {
+      push(() => setHeadlineShown(i), headlineStart + i * headlineStep);
     }
-    push(() => setGlowing(true), mainStart + MAIN.length * mainStep + 100);
-    const mainEnd = mainStart + MAIN.length * mainStep;
+    const headlineEnd = headlineStart + headline.length * headlineStep;
 
-    // Looping dots — 4 cycles of 1→2→3 (~1.5s of "thinking")
-    const dotsStart = mainEnd + 180;
-    const dotStep = 130;
-    const cycles = 4;
-    for (let k = 0; k < cycles; k++) {
-      push(() => setDotCount(1), dotsStart + k * dotStep * 3);
-      push(() => setDotCount(2), dotsStart + k * dotStep * 3 + dotStep);
-      push(() => setDotCount(3), dotsStart + k * dotStep * 3 + dotStep * 2);
+    // Body paragraph fades in once the headline lands
+    push(() => setBodyVisible(true), headlineEnd + 600);
+
+    // Anchor citation a beat later
+    push(() => setAnchorVisible(true), headlineEnd + 2200);
+
+    // Footer "generating your game" types in last
+    const footerStart = headlineEnd + 3400;
+    const footerStep = 35;
+    for (let i = 1; i <= FOOTER.length; i++) {
+      push(() => setFooterShown(i), footerStart + i * footerStep);
     }
-    const dotsEnd = dotsStart + cycles * dotStep * 3;
-    push(() => setDotCount(3), dotsEnd);
+    const footerEnd = footerStart + FOOTER.length * footerStep;
 
-    // Subtitle typewriter
-    const subStart = dotsEnd + 250;
-    const subStep = 28;
-    for (let i = 1; i <= SUB.length; i++) {
-      push(() => setSubShown(i), subStart + i * subStep);
-    }
-    const subEnd = subStart + SUB.length * subStep;
-
-    // Restart hint, well after the show
-    push(() => setShowRestart(true), subEnd + 700);
+    push(() => setShowRestart(true), footerEnd + 800);
 
     return () => timers.forEach(window.clearTimeout);
-  }, [active]);
+  }, [active, insight]);
 
-  if (!active) return null;
+  if (!active || !insight) return null;
 
   const renderChars = (str) =>
     str.split('').map((c, i) => (
@@ -76,19 +68,34 @@ export default function CompletionOverlay({ active }) {
       </span>
     ));
 
-  const dots = '.'.repeat(dotCount);
+  const headlineVisible = insight.headline.slice(0, headlineShown);
+  const footerVisible = FOOTER.slice(0, footerShown);
 
   return (
     <>
       <div className={`cmp-flash${flashing ? ' is-on' : ''}`} />
       <div className="cmp-overlay">
-        <div className={`cmp-main${glowing ? ' is-glowing' : ''}`}>
-          {renderChars(MAIN.slice(0, mainShown))}
-          {mainShown >= MAIN.length && (
-            <span className="cmp-dots">{dots}</span>
+        <div className="cmp-stack">
+          <div className="cmp-main">{renderChars(headlineVisible)}</div>
+          <div className={`cmp-body${bodyVisible ? ' is-shown' : ''}`}>
+            {insight.body}
+          </div>
+          {insight.anchor && (
+            <div className={`cmp-anchor${anchorVisible ? ' is-shown' : ''}`}>
+              {insight.anchor}
+            </div>
           )}
+          <div className="cmp-footer">
+            {footerShown > 0 && (
+              <>
+                {renderChars(footerVisible)}
+                {footerShown >= FOOTER.length && (
+                  <span className="cmp-dots">…</span>
+                )}
+              </>
+            )}
+          </div>
         </div>
-        <div className="cmp-sub">{renderChars(SUB.slice(0, subShown))}</div>
         <div className={`cmp-restart${showRestart ? ' is-shown' : ''}`}>
           press esc to start over
         </div>

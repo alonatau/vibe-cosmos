@@ -7,6 +7,7 @@ import StarField from './StarField.jsx';
 import Completion from './Completion.jsx';
 import CompletionOverlay from './CompletionOverlay.jsx';
 import { VIBES, variantsOf } from '../data/vibes.js';
+import { getInsight } from '../data/scoring.js';
 
 const SLOT_COUNT = 14;
 
@@ -71,6 +72,8 @@ export default function VibeUniverse() {
   const [transitionKind, setTransitionKind] = useState(null);
   const [history, setHistory] = useState([]);
   const [completing, setCompleting] = useState(false);
+  const [path, setPath] = useState([]); // chosen vibe at each click — drives the insight
+  const [insight, setInsight] = useState(null); // computed once at terminal
   const sessionKeyRef = useRef(0);
   const completionTimerRef = useRef(null);
   const dragRef = useRef({ startX: 0, startY: 0, dragged: false });
@@ -131,11 +134,13 @@ export default function VibeUniverse() {
       setShrinking(true);
 
       window.setTimeout(() => {
-        setHistory((h) => [...h, { slots, focusedIdx }]);
+        setHistory((h) => [...h, { slots, focusedIdx, path }]);
 
         const newDepth = history.length + 1;
         const targetCount = activeCountForDepth(newDepth);
         const clickedVibe = slot.vibe;
+        const newPath = [...path, clickedVibe];
+        setPath(newPath);
         sessionKeyRef.current += 1;
         const variants = variantsOf(
           clickedVibe,
@@ -172,9 +177,10 @@ export default function VibeUniverse() {
         setFocusedIdx(idx);
         setSelectedIdx(null);
         setShrinking(false);
-        // Terminal click — start the supernova immediately so it flows out of
-        // the focus animation rather than pausing first.
+        // Terminal click — start the supernova immediately, and compute the
+        // insight from the user's full path so the overlay can reveal it.
         if (targetCount === 1) {
+          setInsight(getInsight(newPath));
           setCompleting(true);
         }
         window.setTimeout(() => {
@@ -193,6 +199,7 @@ export default function VibeUniverse() {
       completionTimerRef.current = null;
     }
     setCompleting(false);
+    setInsight(null);
     setTransitioning(true);
     setTransitionKind('back');
     setSelectedIdx(null);
@@ -204,6 +211,7 @@ export default function VibeUniverse() {
         const prev = history[history.length - 1];
         setSlots(prev.slots);
         setFocusedIdx(prev.focusedIdx);
+        setPath(prev.path || []);
         setHistory((h) => h.slice(0, -1));
         setShrinking(false);
         window.setTimeout(() => {
@@ -221,6 +229,7 @@ export default function VibeUniverse() {
       completionTimerRef.current = null;
     }
     setCompleting(false);
+    setInsight(null);
     setTransitioning(true);
     setTransitionKind('reset');
     setSelectedIdx(null);
@@ -231,6 +240,7 @@ export default function VibeUniverse() {
       window.setTimeout(() => {
         setSlots(pickInitialSlots());
         setHistory([]);
+        setPath([]);
         setShrinking(false);
         window.setTimeout(() => {
           setTransitioning(false);
@@ -347,7 +357,7 @@ export default function VibeUniverse() {
           depth · {depth} {activeCount === 1 ? '· final' : `· ${activeCount} vibes`}
         </div>
       )}
-      <CompletionOverlay active={completing} />
+      <CompletionOverlay active={completing} insight={insight} />
     </div>
   );
 }
