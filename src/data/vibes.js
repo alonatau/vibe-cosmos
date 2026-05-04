@@ -364,36 +364,46 @@ export function mutateVibe(base, seedKey, intensity = 0.25, strategy = 'mixed') 
   };
 }
 
+// After a click, the cluster narrows toward RELATED-BUT-DIFFERENT game types,
+// not palette clones of the focus. ~70% of variants are top-cousins from the
+// catalog (each keeping its own icon + identity) and ~30% are flavor variants
+// of the focus itself (same icon, palette-shifted) so the user sees the chosen
+// genre alongside related options.
 export function variantsOf(base, count, sessionKey, depth = 1) {
   const out = [];
-  const rng = rngFromSeed(hashStr(`${sessionKey}-jitter`));
+  const rng = rngFromSeed(hashStr(`${sessionKey}-mix`));
   const similarityScale = Math.pow(0.85, Math.max(0, depth - 1));
+  const cousins = topCousins(base, Math.max(count + 4, 12));
 
-  const strategies = [];
-  for (let i = 0; i < count; i++) {
-    const r = rng();
-    if (r < 0.55) strategies.push('color');
-    else if (r < 0.85) strategies.push('pattern');
-    else strategies.push('mixed');
-  }
-  if (count >= 3) {
-    if (!strategies.includes('color')) strategies[0] = 'color';
-    if (!strategies.includes('pattern')) strategies[1] = 'pattern';
-  }
+  const cousinCount = Math.min(cousins.length, Math.max(2, Math.floor(count * 0.7)));
+  const flavorCount = count - cousinCount;
 
-  for (let i = 0; i < count; i++) {
-    const ramp = count <= 1 ? 0 : i / (count - 1);
-    const baseIntensity = (0.32 + ramp * 0.32) * similarityScale;
-    const jitter = (rng() - 0.5) * 0.1;
-    const intensity = Math.max(0.1, Math.min(0.7, baseIntensity + jitter));
+  // Cousin variants — different game types in the focus's tag neighbourhood.
+  // Each keeps its own catalog icon/label/mode/tags; only palette is gently
+  // nudged so the cluster feels coherent rather than a catalog dump.
+  for (let i = 0; i < cousinCount; i++) {
+    const cousin = cousins[i];
+    const cousinIntensity = 0.16 * similarityScale;
     out.push(
-      mutateVibe(
-        base,
-        `${sessionKey}-${base.id}-${i}`,
-        intensity,
-        strategies[i]
-      )
+      mutateVibe(cousin, `${sessionKey}-cousin-${i}`, cousinIntensity, 'color')
     );
   }
+
+  // Flavor variants — same game family as focus (same icon), palette-shifted
+  // so the user has options to refine WITHIN the focus genre too.
+  for (let i = 0; i < flavorCount; i++) {
+    const ramp = flavorCount <= 1 ? 0 : i / (flavorCount - 1);
+    const intensity = (0.28 + ramp * 0.25) * similarityScale + (rng() - 0.5) * 0.08;
+    out.push(
+      mutateVibe(base, `${sessionKey}-flavor-${i}`, Math.max(0.1, intensity), 'color')
+    );
+  }
+
+  // Shuffle so cousins and flavors interleave in the cluster
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+
   return out;
 }
