@@ -41,8 +41,11 @@ export default function VibeSphere({
     return () => window.clearTimeout(t);
   }, [dissolve, dissolveDelay]);
 
-  // Render the painter to a canvas → THREE.CanvasTexture for this vibe.
-  const texture = useMemo(() => {
+  // Texture: prefer the real reference image when present, otherwise use the
+  // canvas painter as fallback. Image loading is async — we paint the canvas
+  // immediately so the orb has *something* visible during the load, then swap
+  // to the real image when it's ready.
+  const fallbackTexture = useMemo(() => {
     const canvas = paintToCanvas(vibe.painter, vibe.palette);
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -51,7 +54,47 @@ export default function VibeSphere({
     return tex;
   }, [vibe.painter, vibe.palette]);
 
-  useEffect(() => () => texture.dispose?.(), [texture]);
+  const [imageTexture, setImageTexture] = useState(null);
+  useEffect(() => {
+    if (!vibe.image) {
+      setImageTexture(null);
+      return;
+    }
+    let cancelled = false;
+    const loader = new THREE.TextureLoader();
+    loader.load(
+      vibe.image,
+      (tex) => {
+        if (cancelled) {
+          tex.dispose();
+          return;
+        }
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 8;
+        tex.wrapS = THREE.ClampToEdgeWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
+        setImageTexture(tex);
+      },
+      undefined,
+      () => {
+        // load error — silently fall back to canvas
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [vibe.image]);
+
+  const texture = imageTexture || fallbackTexture;
+  useEffect(() => () => fallbackTexture.dispose?.(), [fallbackTexture]);
+  useEffect(() => () => imageTexture?.dispose?.(), [imageTexture]);
+
+  const grade = vibe.grade || {
+    tint: [1, 1, 1],
+    saturation: 1,
+    hueShift: 0,
+    brightness: 1,
+  };
 
   const uniforms = useMemo(
     () => ({
@@ -67,8 +110,12 @@ export default function VibeSphere({
           vibe.palette[0][2] * 0.6 + 0.4
         ),
       },
+      uTint: { value: new THREE.Color(grade.tint[0], grade.tint[1], grade.tint[2]) },
+      uSaturation: { value: grade.saturation },
+      uHueShift: { value: grade.hueShift },
+      uBrightness: { value: grade.brightness },
     }),
-    [texture, vibe.palette]
+    [texture, vibe.palette, grade]
   );
 
   // Keep texture uniform in sync if the vibe data changes (variant swap)

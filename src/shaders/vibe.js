@@ -1,6 +1,8 @@
-// Texture-based shader. Each sphere is mapped with a canvas-painted texture
-// (game-art style + game-scene). Shader adds rim glow, hover/selected pulse,
-// and the supernova completion effect on top.
+// Texture-based shader. Each sphere is mapped with either a real image
+// (Midjourney/SD reference) or a canvas-painted fallback. Shader applies a
+// per-instance colour grade (tint × saturation × hue × brightness) so variants
+// of the same image look distinct, then adds rim glow, hover/selected pulse,
+// and the supernova completion effect.
 
 export const vertexShader = /* glsl */ `
   varying vec3 vPos;
@@ -41,11 +43,32 @@ export const fragmentShader = /* glsl */ `
   uniform float uSelected;
   uniform float uCompletion;
   uniform sampler2D uTexture;
-  uniform vec3 uTintRim; // colour of the rim glow
+  uniform vec3 uTintRim;        // colour of the rim glow
+  uniform vec3 uTint;           // multiplicative tint for the base texture
+  uniform float uSaturation;    // 0 = grey, 1 = original, >1 = boosted
+  uniform float uHueShift;      // radians
+  uniform float uBrightness;    // multiplier
+
+  // YIQ-based hue rotation
+  vec3 hueRotate(vec3 c, float a){
+    float U = cos(a); float W = sin(a);
+    mat3 m = mat3(
+      0.299 + 0.701*U + 0.168*W, 0.587 - 0.587*U + 0.330*W, 0.114 - 0.114*U - 0.497*W,
+      0.299 - 0.299*U - 0.328*W, 0.587 + 0.413*U + 0.035*W, 0.114 - 0.114*U + 0.292*W,
+      0.299 - 0.3*U   + 1.25*W,  0.587 - 0.588*U - 1.05*W,  0.114 + 0.886*U - 0.203*W
+    );
+    return clamp(c * m, 0.0, 1.0);
+  }
 
   void main(){
     // Base — sample the painted texture
     vec3 col = texture2D(uTexture, vUv).rgb;
+    // Colour grade: hue → saturation → tint → brightness
+    col = hueRotate(col, uHueShift);
+    float lum = dot(col, vec3(0.299, 0.587, 0.114));
+    col = mix(vec3(lum), col, uSaturation);
+    col *= uTint;
+    col *= uBrightness;
 
     // Fresnel rim glow — stronger on hover/selected
     float fres = pow(1.0 - max(0.0, dot(normalize(vNormal), vec3(0.0, 0.0, 1.0))), 2.5);
