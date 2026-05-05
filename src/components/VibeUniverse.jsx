@@ -66,7 +66,7 @@ function pickInitialSlots() {
   return sampled.map((v) => ({ vibe: v, active: true }));
 }
 
-export default function VibeUniverse() {
+export default function VibeUniverse({ onExit }) {
   const [slots, setSlots] = useState(pickInitialSlots);
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [focusedIdx, setFocusedIdx] = useState(null);
@@ -231,6 +231,16 @@ export default function VibeUniverse() {
 
   const handleReset = useCallback(() => {
     if (transitioning) return;
+    // If we have an exit callback (App routes us back to the intro picker),
+    // prefer that over re-shuffling the cluster — the user is asking to leave.
+    if (onExit) {
+      if (completionTimerRef.current) {
+        window.clearTimeout(completionTimerRef.current);
+        completionTimerRef.current = null;
+      }
+      onExit();
+      return;
+    }
     if (completionTimerRef.current) {
       window.clearTimeout(completionTimerRef.current);
       completionTimerRef.current = null;

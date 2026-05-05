@@ -58,14 +58,9 @@ export function getGameRecipe(path) {
   };
 }
 
-function composeBody(colorLabel, styleLabel, genreLabel) {
-  const parts = [];
-  if (colorLabel) parts.push(colorLabel.toLowerCase());
-  if (styleLabel) parts.push(`${styleLabel.toLowerCase()}-styled`);
-  const lead = parts.length
-    ? `A ${parts.join(', ')} ${genreLabel.toLowerCase()}.`
-    : `A ${genreLabel.toLowerCase()}.`;
-  return lead;
+function composeBody() {
+  // Headline carries the game name; body is the platform handoff line.
+  return 'Playo will now generate your game…';
 }
 
 export function getInsight(path) {

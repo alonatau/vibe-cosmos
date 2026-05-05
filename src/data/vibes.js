@@ -245,19 +245,72 @@ const COVERAGE_MIN = { 0: 3, 1: 3, 2: 2, 3: 1 };
 // Recency decay: older clicks weight less when building the taste vector.
 const RECENCY_DECAY = 0.7;
 
-// Number of dimensions shared between two orbs (0..3).
-function sharedDims(a, b) {
-  if (!a || !b || a.id === b.id) return 0;
+// ---- Tag IDF: rare tags are more informative than common ones ----
+// log(N / (1 + count(tag))) per dimension, computed once at module load.
+// Matching a niche tag like "narrative" (2 orbs) scores far higher than
+// matching "vivid" (~25 orbs) — fixes the catalog-density dominance bug.
+const IDF = (() => {
+  const counts = { color: new Map(), style: new Map(), genre: new Map() };
+  for (const v of VIBES) {
+    if (v.color) counts.color.set(v.color, (counts.color.get(v.color) || 0) + 1);
+    if (v.style) counts.style.set(v.style, (counts.style.get(v.style) || 0) + 1);
+    if (v.genre) counts.genre.set(v.genre, (counts.genre.get(v.genre) || 0) + 1);
+  }
+  const N = Math.max(1, VIBES.length);
+  const make = (m) => {
+    const out = new Map();
+    for (const [k, c] of m) out.set(k, Math.log((N + 1) / (c + 1)) + 1);
+    return out;
+  };
+  return { color: make(counts.color), style: make(counts.style), genre: make(counts.genre) };
+})();
+const idfOf = (axis, value) => (value ? IDF[axis].get(value) || 1 : 0);
+
+// ---- Tag-vector representation for cosine similarity ----
+// Sparse vector keyed by `${axis}:${value}` with IDF-weighted values
+// (× attribute weight). Used to compute continuous, fine-grained
+// similarity between orbs.
+const VEC_CACHE = new WeakMap();
+function tagVector(orb) {
+  if (!orb) return new Map();
+  if (VEC_CACHE.has(orb)) return VEC_CACHE.get(orb);
+  const v = new Map();
+  if (orb.color) v.set(`color:${orb.color}`, W.color * idfOf('color', orb.color));
+  if (orb.style) v.set(`style:${orb.style}`, W.style * idfOf('style', orb.style));
+  if (orb.genre) v.set(`genre:${orb.genre}`, W.genre * idfOf('genre', orb.genre));
+  VEC_CACHE.set(orb, v);
+  return v;
+}
+function vecNorm(v) {
+  let s = 0;
+  for (const x of v.values()) s += x * x;
+  return Math.sqrt(s) || 1;
+}
+function vecDot(a, b) {
+  // Iterate the smaller map for speed.
+  const [s, l] = a.size < b.size ? [a, b] : [b, a];
+  let d = 0;
+  for (const [k, x] of s) {
+    const y = l.get(k);
+    if (y !== undefined) d += x * y;
+  }
+  return d;
+}
+function cosineSim(a, b) {
+  const va = tagVector(a);
+  const vb = tagVector(b);
+  if (va.size === 0 || vb.size === 0) return 0;
+  return vecDot(va, vb) / (vecNorm(va) * vecNorm(vb));
+}
+
+export function similarity(a, b) {
+  if (!a || !b || a.id === b.id) return -1;
+  // Public similarity API kept as 0..3 dimension-overlap count for back-compat.
   let s = 0;
   if (a.color && a.color === b.color) s += 1;
   if (a.style && a.style === b.style) s += 1;
   if (a.genre && a.genre === b.genre) s += 1;
   return s;
-}
-
-export function similarity(a, b) {
-  if (!a || !b || a.id === b.id) return -1;
-  return sharedDims(a, b);
 }
 
 // Build a recency-decayed taste vector from the user's click path.
@@ -282,14 +335,31 @@ function buildTaste(path) {
   return taste;
 }
 
-// Relevance ∈ ~[0, 1]: weighted match against the user's taste vector.
+// IDF-weighted relevance. A match on a rare tag (e.g. "narrative", 2 orbs)
+// scores far higher than a match on a common tag (e.g. "vivid", ~25 orbs),
+// so clicking a niche orb pulls the cluster toward the niche instead of
+// toward whichever tag values dominate the catalog.
 function relevance(orb, taste) {
   if (!orb || taste.total === 0) return 0;
   let s = 0;
-  if (orb.color) s += W.color * (taste.color.get(orb.color) || 0);
-  if (orb.style) s += W.style * (taste.style.get(orb.style) || 0);
-  if (orb.genre) s += W.genre * (taste.genre.get(orb.genre) || 0);
-  return s / taste.total; // normalize so weights sum to ≤ 1
+  if (orb.color) {
+    s += W.color * (taste.color.get(orb.color) || 0) * idfOf('color', orb.color);
+  }
+  if (orb.style) {
+    s += W.style * (taste.style.get(orb.style) || 0) * idfOf('style', orb.style);
+  }
+  if (orb.genre) {
+    s += W.genre * (taste.genre.get(orb.genre) || 0) * idfOf('genre', orb.genre);
+  }
+  // Normalise by both the taste mass and the max possible IDF per dim so the
+  // result stays roughly in [0, 1] regardless of catalog skew.
+  const maxIdf = Math.max(
+    ...IDF.color.values(),
+    ...IDF.style.values(),
+    ...IDF.genre.values(),
+    1
+  );
+  return s / (taste.total * maxIdf);
 }
 
 // Soft coverage bonus: prefer candidates that introduce a new value to an
@@ -319,9 +389,12 @@ function mmrPick(candidates, count, taste, lambda, minDistinct, sessionKey) {
     let bestScore = -Infinity;
     for (const c of pool) {
       const rel = relevance(c, taste);
+      // Cosine similarity over IDF-weighted tag vectors gives continuous
+      // 0..1 values — diversity ranking actually differentiates candidates
+      // that all share 0 dimensions (the binary version tied them).
       const maxSim = picks.length === 0
         ? 0
-        : Math.max(...picks.map((p) => sharedDims(c, p) / 3));
+        : Math.max(...picks.map((p) => cosineSim(c, p)));
       const cov = coverageBonus(c, picks, minDistinct);
       const score = lambda * rel - (1 - lambda) * maxSim + cov + jitter() * 0.04;
       if (score > bestScore) {
@@ -344,14 +417,14 @@ function pickWildCards(pool, count, picks, sessionKey) {
   const out = [];
   let remaining = pool.filter((p) => !picks.find((q) => q.id === p.id));
   while (out.length < count && remaining.length > 0) {
-    // Pick the candidate with lowest similarity to existing picks
+    // Pick the candidate with lowest cosine similarity to existing picks
     let best = null;
     let bestScore = -Infinity;
     for (const c of remaining) {
       const ref = [...picks, ...out];
       const maxSim = ref.length === 0
         ? 0
-        : Math.max(...ref.map((p) => sharedDims(c, p) / 3));
+        : Math.max(...ref.map((p) => cosineSim(c, p)));
       const score = (1 - maxSim) + rng() * 0.3;
       if (score > bestScore) {
         bestScore = score;
