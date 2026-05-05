@@ -106,6 +106,76 @@ function makeParticles() {
 // Wireframe glass cube — minimalist, isometric-tilted, glowing
 // edges, subtle dotted face texture, sparkle stars at corners
 // ============================================================
+// Drifting purple sparkles confined to the cube's interior. Lives inside
+// the cube group so they rotate with it, anchored to the box.
+const INSIDE_COUNT = 110;
+function InsideSparkle({ elapsedRef }) {
+  const ref = useRef();
+  const params = useMemo(() => {
+    const positions = new Float32Array(INSIDE_COUNT * 3);
+    const colors = new Float32Array(INSIDE_COUNT * 3);
+    const phases = new Float32Array(INSIDE_COUNT);
+    const rates = new Float32Array(INSIDE_COUNT);
+    const palette = [
+      [0.7, 0.3, 1.0],   // pure purple
+      [0.55, 0.18, 0.92],// deep violet
+      [0.85, 0.55, 1.0], // lavender
+      [0.92, 0.7, 1.0],  // pale violet
+      [0.95, 0.35, 0.85],// magenta hint
+      [1.0, 0.96, 1.0],  // sparkle white
+    ];
+    const r = CUBE_SIZE * 0.45;
+    for (let i = 0; i < INSIDE_COUNT; i++) {
+      positions[i * 3]     = (Math.random() - 0.5) * 2 * r;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 2 * r;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 2 * r;
+      const c = palette[Math.floor(Math.random() * palette.length)];
+      colors[i * 3]     = c[0];
+      colors[i * 3 + 1] = c[1];
+      colors[i * 3 + 2] = c[2];
+      phases[i] = Math.random() * Math.PI * 2;
+      rates[i] = 4 + Math.random() * 8;
+    }
+    return { positions, colors, phases, rates };
+  }, []);
+
+  const liveCol = useMemo(() => new Float32Array(params.colors), [params.colors]);
+
+  useFrame(() => {
+    if (!ref.current) return;
+    const t = elapsedRef.current;
+    const colArr = ref.current.geometry.attributes.color.array;
+    // Each particle twinkles at its own rate; output color = base × twinkle
+    for (let i = 0; i < INSIDE_COUNT; i++) {
+      const tw = 0.35 + 0.65 * Math.sin(t * params.rates[i] + params.phases[i]);
+      const fade = Math.max(0, tw);
+      colArr[i * 3]     = params.colors[i * 3]     * fade;
+      colArr[i * 3 + 1] = params.colors[i * 3 + 1] * fade;
+      colArr[i * 3 + 2] = params.colors[i * 3 + 2] * fade;
+    }
+    ref.current.geometry.attributes.color.needsUpdate = true;
+  });
+
+  return (
+    <points ref={ref}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[params.positions, 3]} />
+        <bufferAttribute attach="attributes-color" args={[liveCol, 3]} />
+      </bufferGeometry>
+      <pointsMaterial
+        map={getStarTexture()}
+        size={0.13}
+        sizeAttenuation
+        vertexColors
+        transparent
+        opacity={1}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </points>
+  );
+}
+
 function MagicBox({ elapsedRef }) {
   const groupRef = useRef();
   const cubeFaceRef = useRef();
@@ -218,6 +288,8 @@ function MagicBox({ elapsedRef }) {
           depthWrite={false}
         />
       </points>
+      {/* Drifting purple sparkles inside the cube */}
+      <InsideSparkle elapsedRef={elapsedRef} />
     </group>
   );
 }

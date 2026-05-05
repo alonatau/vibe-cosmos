@@ -293,6 +293,8 @@ body,
   max-width: 760px;
   position: relative;
   z-index: 1;
+  /* Lifted above the cube so the headline + body don't overlap it */
+  transform: translateY(-22vh);
 }
 
 .cmp-body {
