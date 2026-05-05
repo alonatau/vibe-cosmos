@@ -23,11 +23,12 @@ export default function CompletionOverlay({ active, insight }) {
     const timers = [];
     const push = (fn, t) => timers.push(window.setTimeout(fn, t));
 
-    // White flash at the supernova peak (matches sphere's burst beat ~1.95s).
-    // P2G mode skips the supernova — flash at t=0 instead.
-    const flashAt = insight.skipSupernova ? 80 : 1900;
-    const flashOff = flashAt + 600;
-    const headlineStart = insight.skipSupernova ? 350 : 2300;
+    // White flash at the magic-burst beat (~2.2s — when the orb is consumed
+    // by the box and the column of light shoots up). P2G skips the orb
+    // sequence and flashes immediately.
+    const flashAt = insight.skipSupernova ? 80 : 2200;
+    const flashOff = flashAt + 700;
+    const headlineStart = insight.skipSupernova ? 350 : 2700;
 
     push(() => setFlashing(true), flashAt);
     push(() => setFlashing(false), flashOff);

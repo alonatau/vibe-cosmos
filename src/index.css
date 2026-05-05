@@ -296,21 +296,21 @@ body,
 }
 
 .cmp-body {
-  margin-top: 28px;
+  margin-top: 32px;
   font-family: 'Inter', system-ui, sans-serif;
-  font-size: clamp(14px, 1.1vw, 17px);
-  font-weight: 300;
-  line-height: 1.55;
-  color: rgba(232, 230, 240, 0.8);
-  max-width: 40em;
-  letter-spacing: 0.005em;
+  font-size: clamp(20px, 2vw, 30px);
+  font-weight: 250;
+  line-height: 1.4;
+  color: rgba(245, 245, 255, 0.95);
+  max-width: 22em;
+  letter-spacing: 0.003em;
+  text-align: center;
+  filter: drop-shadow(0 0 16px rgba(180, 200, 255, 0.45));
   opacity: 0;
   transform: translateY(10px);
-  filter: blur(2px);
   transition:
     opacity 1.6s cubic-bezier(0.2, 0.9, 0.3, 1),
-    transform 1.6s cubic-bezier(0.2, 0.9, 0.3, 1),
-    filter 1.6s ease;
+    transform 1.6s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
 .cmp-body.is-shown {

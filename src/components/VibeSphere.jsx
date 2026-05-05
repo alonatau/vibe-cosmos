@@ -129,6 +129,7 @@ export default function VibeSphere({
   const completionGlow = useRef(0);
   const completionScale = useRef(1);
   const completionFade = useRef(1);
+  const completionDescent = useRef(0); // y-offset as the orb sinks into the box
 
   useEffect(() => {
     document.body.style.cursor = hovered ? 'pointer' : 'auto';
@@ -153,39 +154,38 @@ export default function VibeSphere({
       1 - Math.pow(fadeSpeed, delta)
     );
 
-    // Completion supernova: smooth ramp from focus → pulse → blow up → burst → fade.
-    // Designed to start the moment the sphere appears, so the energy is continuous.
+    // Completion: orb gathers itself, descends, sinks into the magic box,
+    // disappears. The box (rendered in Completion.jsx) then releases magic
+    // upward. No more supernova explosion.
     if (completing && isFocused) {
       completionRef.current += delta;
       const ct = completionRef.current;
-      if (ct < 0.9) {
-        // Phase 1 — gentle ramp in. Sphere is fading in; we ride that energy.
-        const e = ct / 0.9;
-        completionScale.current = 1 + e * 0.4 + Math.sin(ct * 6) * 0.05 * e;
-        completionGlow.current = e * 0.35;
+      if (ct < 0.6) {
+        // Phase 1 — gentle hover at focus position, glow gathers
+        completionScale.current = 1 + Math.sin(ct * 4) * 0.04;
+        completionGlow.current = (ct / 0.6) * 0.55;
         completionFade.current = 1;
-      } else if (ct < 1.7) {
-        // Phase 2 — explosive grow with wobble; spin accelerates fast
-        const e = (ct - 0.9) / 0.8;
-        const wobble = Math.sin(ct * 14.0) * 0.18 * (1 - e * 0.5);
-        completionScale.current = 1.4 + Math.pow(e, 1.5) * 2.6 + wobble;
-        completionGlow.current = 0.35 + e * 0.65;
+        completionDescent.current = 0;
+      } else if (ct < 1.8) {
+        // Phase 2 — pulled toward the box, accelerating descent
+        const u = (ct - 0.6) / 1.2;
+        const eased = u * u * (3 - 2 * u); // smoothstep
+        completionScale.current = 1 - eased * 0.5;
+        completionGlow.current = 0.55 + u * 0.35;
         completionFade.current = 1;
-      } else if (ct < 1.95) {
-        // Phase 3 — peak. Held briefly at maximum brightness/scale.
-        completionScale.current = 4.0;
-        completionGlow.current = 1.0;
-        completionFade.current = 1;
-      } else if (ct < 2.8) {
-        // Phase 4 — burst. Particles fire (in Completion.jsx), sphere collapses.
-        const u = (ct - 1.95) / 0.85;
-        completionScale.current = 4.0 * (1 - Math.pow(u, 1.4) * 0.95);
-        completionGlow.current = 1 - u * 0.7;
-        completionFade.current = Math.max(0, 1 - Math.pow(u, 1.2));
+        completionDescent.current = -2.4 * eased;
+      } else if (ct < 2.2) {
+        // Phase 3 — final swallow into the box
+        const u = (ct - 1.8) / 0.4;
+        completionScale.current = 0.5 * (1 - u);
+        completionGlow.current = 0.9 - u * 0.5;
+        completionFade.current = Math.max(0, 1 - u);
+        completionDescent.current = -2.4 - u * 0.2;
       } else {
         completionScale.current = 0;
         completionGlow.current = 0;
         completionFade.current = 0;
+        completionDescent.current = -2.6;
       }
     } else {
       completionRef.current = 0;
@@ -212,7 +212,12 @@ export default function VibeSphere({
     // center and the cluster orbits visibly around it as the user rotates.
     let target;
     if (isSelected || isFocused) {
-      target = new THREE.Vector3(drift.x * 0.3, drift.y * 0.3, drift.z * 0.3);
+      // During completion, descend toward the magic box (y < 0 at world origin).
+      target = new THREE.Vector3(
+        drift.x * 0.3,
+        drift.y * 0.3 + completionDescent.current,
+        drift.z * 0.3
+      );
     } else {
       target = homePos.clone().add(drift);
     }
