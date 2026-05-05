@@ -233,14 +233,19 @@ export const VIBES = Object.entries(modules).map(([path, mod]) => {
 // Attribute weights: genre dominates revealed preference for games.
 const W = { genre: 0.5, style: 0.3, color: 0.2 };
 
-// MMR λ schedule — relevance share by depth (rest is diversity).
-const LAMBDA = { 0: 0.2, 1: 0.4, 2: 0.6, 3: 1.0 };
+// MMR λ schedule — relevance share by depth (rest is diversity). Tuned
+// to step harder after each click: depth-1 variants are mostly about
+// matching what the user picked, depth-2 is near-pure exploit.
+const LAMBDA = { 0: 0.2, 1: 0.62, 2: 0.85, 3: 1.0 };
 
-// ε-greedy wild-card share by depth (fraction of cluster that's exploration).
-const EPSILON = { 0: 0.25, 1: 0.15, 2: 0.0, 3: 0.0 };
+// ε-greedy wild-card share by depth. After click 1 the user has expressed
+// real intent — no more wild cards, every slot should reinforce the path.
+const EPSILON = { 0: 0.25, 1: 0.0, 2: 0.0, 3: 0.0 };
 
-// Min distinct values per axis at each depth (anti-clone coverage).
-const COVERAGE_MIN = { 0: 3, 1: 3, 2: 2, 3: 1 };
+// Min distinct values per axis at each depth. Loosened at depth 1 so
+// relevance can dominate without coverage forcing pivot options when the
+// user already has them via the initial 12-orb diversity.
+const COVERAGE_MIN = { 0: 3, 1: 2, 2: 1, 3: 1 };
 
 // Recency decay: older clicks weight less when building the taste vector.
 const RECENCY_DECAY = 0.7;
