@@ -600,3 +600,81 @@ body,
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+/* ========== Completion canvas + P2G letter flight ========== */
+
+.completion-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.completion-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Letters of the prompt animating into the cube. Starts roughly where the
+   input was, ends near the cube's screen position (~67% from top). */
+.p2g-flying {
+  position: fixed;
+  top: 38%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  max-width: 78vw;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: clamp(20px, 2.6vw, 36px);
+  font-weight: 250;
+  color: rgba(245, 245, 255, 0.95);
+  letter-spacing: 0.005em;
+  pointer-events: none;
+  z-index: 4;
+  filter: drop-shadow(0 0 18px rgba(180, 200, 255, 0.35));
+}
+
+.p2g-flying-char {
+  display: inline-block;
+  white-space: pre;
+  opacity: 0;
+  transform-origin: center;
+  animation-name: p2g-fly;
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(0.55, 0, 0.7, 1);
+  /* tiny per-char horizontal drift via custom property — slight curving
+     paths look more magical than uniform straight lines */
+  --drift: 0px;
+}
+
+/* Letter trajectory: starts visible at its layout position, briefly turns
+   purple, then accelerates downward toward the cube while shrinking and
+   fading out — visually getting absorbed by the box. */
+@keyframes p2g-fly {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(1);
+    color: rgba(245, 245, 255, 1);
+    filter: blur(0);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  60% {
+    opacity: 0.85;
+    transform: translate(var(--drift), 18vh) scale(0.55);
+    color: rgba(200, 130, 255, 0.95);
+    filter: blur(0.5px);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift), 32vh) scale(0);
+    color: rgba(200, 130, 255, 0);
+    filter: blur(2px);
+  }
+}

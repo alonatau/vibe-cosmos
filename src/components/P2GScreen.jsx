@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import CompletionOverlay from './CompletionOverlay.jsx';
+import CompletionCanvas from './CompletionCanvas.jsx';
 
-// Prompt-to-Game flow: a single text input. On submit the same supernova /
-// typewriter completion plays, with the user's prompt as the game name.
+// Prompt-to-Game flow: textarea → on submit, the typed prompt's letters
+// stream into the wireframe cube, the cube absorbs them, purple sparkle
+// erupts, and the headline (the prompt as the game name) appears above.
 export default function P2GScreen({ onExit }) {
   const [prompt, setPrompt] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -26,19 +28,18 @@ export default function P2GScreen({ onExit }) {
     setSubmitted(true);
   };
 
-  // Title-case the prompt for the headline; keep it ≤ 60 chars
   const headline = (() => {
     const t = prompt.trim().slice(0, 60);
     if (t.length === 0) return '';
     return t.charAt(0).toUpperCase() + t.slice(1);
   })();
 
+  // Same insight shape as CCP — full cube/burst/sparkle sequence.
   const insight = submitted
     ? {
         headline,
         body: 'Playo will now generate your game…',
         anchor: null,
-        skipSupernova: true, // no orb burst in P2G — start headline reveal sooner
       }
     : null;
 
@@ -77,7 +78,47 @@ export default function P2GScreen({ onExit }) {
           </div>
         </div>
       )}
+      {submitted && (
+        <>
+          <CompletionCanvas active={true} />
+          <FlyingLetters text={prompt} />
+        </>
+      )}
       <CompletionOverlay active={submitted} insight={insight} />
+    </div>
+  );
+}
+
+// Render each character as an inline span; per-char animation-delay creates
+// the staggered "stream into the box" effect. Each char arrives at the cube
+// before MAGIC_BURST_AT (~2.2s) so the burst absorbs them.
+const STAGGER_MS = 32;
+const FLIGHT_MS = 1200;
+const FIRST_CHAR_DELAY_MS = 550;
+
+function FlyingLetters({ text }) {
+  const display = (text || '').slice(0, 60);
+  // Tiny deterministic horizontal drift per char so letters curve toward
+  // the cube instead of falling in straight columns.
+  const driftFor = (i) => {
+    const offset = ((i * 41) % 17) - 8; // -8..+8, deterministic
+    return `${offset * 6}px`;
+  };
+  return (
+    <div className="p2g-flying">
+      {display.split('').map((c, i) => (
+        <span
+          key={i}
+          className="p2g-flying-char"
+          style={{
+            animationDelay: `${FIRST_CHAR_DELAY_MS + i * STAGGER_MS}ms`,
+            animationDuration: `${FLIGHT_MS}ms`,
+            '--drift': driftFor(i),
+          }}
+        >
+          {c === ' ' ? ' ' : c}
+        </span>
+      ))}
     </div>
   );
 }
