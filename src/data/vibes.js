@@ -233,19 +233,123 @@ export const VIBES = Object.entries(modules).map(([path, mod]) => {
 // Attribute weights: genre dominates revealed preference for games.
 const W = { genre: 0.5, style: 0.3, color: 0.2 };
 
-// MMR λ schedule — relevance share by depth (rest is diversity). Tuned
-// to step harder after each click: depth-1 variants are mostly about
-// matching what the user picked, depth-2 is near-pure exploit.
-const LAMBDA = { 0: 0.2, 1: 0.62, 2: 0.85, 3: 1.0 };
+// Curated cousin maps — drives the explicit "related X" buckets the user
+// expects: clicking anime gives chibi/manga/cellshaded; clicking war gives
+// battle/shooter; clicking adventure gives runner/openworld/rpg. Anything
+// not in the map gracefully has no related-style/genre candidates.
+const STYLE_COUSINS = {
+  // Anime family
+  anime: ['chibi', 'manga', 'cellshaded', 'japanese', 'pastel'],
+  manga: ['anime', 'comics', 'japanese'],
+  chibi: ['anime', 'cartoonish', 'childish', 'cartoon'],
+  japanese: ['anime', 'manga', 'painterly'],
+  pastel: ['anime', 'cartoonish', 'childish'],
+  // Cartoon family
+  cartoon: ['cartoonish', 'cellshaded', 'comics', 'childish', 'chibi'],
+  cartoonish: ['cartoon', 'cartoonish3d', 'cellshaded', 'childish'],
+  cartoonish3d: ['cartoonish', '3d', 'voxel', 'pastel3d', 'toon3d'],
+  cellshaded: ['cartoon', 'cartoonish', 'anime', 'comics', 'toon3d'],
+  comics: ['cartoon', 'cellshaded', 'flat', 'manga'],
+  childish: ['cartoon', 'chibi', 'cartoonish', 'pastel'],
+  toon3d: ['cartoonish3d', 'cartoon', 'cellshaded', '3d'],
+  // Realistic family
+  realistic: ['photoreal', 'horror', 'cyberpunk'],
+  photoreal: ['realistic', 'cyberpunk', 'horror'],
+  // Pixel / retro family
+  pixel: ['retro', 'classic', 'voxel'],
+  retro: ['pixel', 'classic'],
+  classic: ['retro', 'pixel'],
+  // 3D / low-poly family
+  '3d': ['voxel', 'lowpoly', 'cartoonish3d', 'pastel3d', 'toon3d'],
+  voxel: ['3d', 'lowpoly', 'pixel'],
+  lowpoly: ['voxel', '3d', 'minimal'],
+  pastel3d: ['3d', 'cartoonish3d', 'cozy', 'pastel'],
+  // Painterly family
+  painterly: ['oil', 'watercolor', 'fantasy', 'cosmic', 'noir', 'japanese'],
+  fantasy: ['painterly', 'anime', 'japanese'],
+  cosmic: ['painterly', 'cosmichorror', 'horror'],
+  cosmichorror: ['cosmic', 'painterly', 'horror'],
+  noir: ['painterly', 'realistic'],
+  cozy: ['cartoon', 'cartoonish', 'painterly', 'pastel3d'],
+  horror: ['realistic', 'painterly', 'cosmichorror'],
+  oil: ['painterly', 'watercolor'],
+  watercolor: ['painterly', 'oil'],
+  // Flat / vector family
+  flat: ['vector', 'flatvector', 'comics', 'cartoon'],
+  vector: ['flat', 'flatvector', 'minimal'],
+  flatvector: ['flat', 'vector', 'cartoon'],
+  minimal: ['flat', 'vector', 'lowpoly'],
+  // Themed / setting-style
+  cyberpunk: ['realistic', 'photoreal'],
+  steampunk: ['painterly'],
+  western: ['painterly', 'realistic'],
+  egypt: ['painterly'],
+  scifi: ['cyberpunk', '3d', 'realistic'],
+  stylized: ['cellshaded', 'painterly'],
+};
 
-// ε-greedy wild-card share by depth. After click 1 the user has expressed
-// real intent — no more wild cards, every slot should reinforce the path.
-const EPSILON = { 0: 0.25, 1: 0.0, 2: 0.0, 3: 0.0 };
-
-// Min distinct values per axis at each depth. Loosened at depth 1 so
-// relevance can dominate without coverage forcing pivot options when the
-// user already has them via the initial 12-orb diversity.
-const COVERAGE_MIN = { 0: 3, 1: 2, 2: 1, 3: 1 };
+const GENRE_COUSINS = {
+  // Adventure family
+  adventure: ['runner', 'rpg', 'openworld', 'platformer', 'adventurequest', 'exploration'],
+  adventurequest: ['adventure', 'rpg'],
+  openworld: ['adventure', 'rpg', 'exploration'],
+  exploration: ['adventure', 'openworld', 'sea'],
+  rpg: ['adventure', 'mmorpg', 'narrative', 'roguelike', 'openworld'],
+  mmorpg: ['rpg', 'mmo', 'openworld'],
+  mmo: ['mmorpg', 'rpg'],
+  narrative: ['rpg', 'visualnovel', 'adventure'],
+  visualnovel: ['narrative', 'rpg'],
+  roguelike: ['rpg', 'adventure'],
+  // Combat family
+  action: ['adventure', 'fighting', 'shooter', 'battle'],
+  shooter: ['fps', 'war', 'battle', 'action'],
+  fps: ['shooter', 'war'],
+  war: ['battle', 'shooter', 'strategy', 'fps'],
+  battle: ['war', 'fighting', 'arena', 'action'],
+  fighting: ['battle', 'arena'],
+  arena: ['battle', 'fighting', 'moba'],
+  moba: ['arena', 'strategy'],
+  // Speed / arcade family
+  runner: ['adventure', 'racing', 'platformer', 'arcade'],
+  racing: ['carrace', 'cars', 'runner', 'sports', 'race'],
+  carrace: ['racing', 'cars', 'race'],
+  cars: ['racing', 'carrace'],
+  race: ['racing', 'carrace', 'cars'],
+  platformer: ['runner', 'adventure', 'arcade'],
+  arcade: ['platformer', 'runner'],
+  // Strategy / sim family
+  puzzle: ['strategy', 'simulation'],
+  strategy: ['puzzle', 'war', 'simulation', 'towerdefense'],
+  simulation: ['strategy', 'sandbox', 'builder', 'farming', 'cozy', 'village'],
+  sandbox: ['simulation', 'builder', 'crafting'],
+  builder: ['sandbox', 'simulation', 'city'],
+  city: ['builder', 'simulation'],
+  crafting: ['sandbox', 'builder'],
+  farming: ['simulation', 'village'],
+  village: ['simulation', 'farming', 'sandbox'],
+  towerdefense: ['strategy'],
+  // Survival / horror family
+  horror: ['survival', 'shooter'],
+  survival: ['horror', 'postapoc'],
+  postapoc: ['survival', 'war'],
+  // Sports family
+  sports: ['racing'],
+  // Flight / space family
+  flight: ['spaceflight', 'simulation'],
+  spaceflight: ['flight', 'space'],
+  space: ['spaceflight'],
+  // Sea family
+  sea: ['adventure', 'simulation', 'fishing'],
+  fishing: ['simulation', 'sea'],
+  // Other
+  superheroes: ['action', 'adventure', 'fighting'],
+  party: ['arcade'],
+  rhythm: ['arcade'],
+  card: ['strategy'],
+  cooking: ['simulation'],
+  trivia: ['party'],
+  dating: ['narrative', 'visualnovel'],
+};
 
 // Recency decay: older clicks weight less when building the taste vector.
 const RECENCY_DECAY = 0.7;
@@ -500,54 +604,111 @@ function flavorVariant(base, seedKey) {
   };
 }
 
-// Build the next cluster of `count` candidates after a click. `path` is the
-// full sequence of clicked orbs (including the current focus). The taste
-// vector is built from the path with recency decay; candidates are scored by
-// MMR with depth-dependent λ; coverage and ε-greedy wild cards keep the user
-// from getting trapped on their first click.
+// Build the next cluster of `count` candidates after a click. Uses explicit
+// bucket distribution so the user always sees a predictable mix:
+//   click 1 → "other [style]" + "other [genre]" + related-style + related-genre
+//   click 2 → tighter — same-both first, then same-style + same-genre
+// `path` is excluded from candidates so the user never sees a repeat.
 export function variantsOf(focus, count, sessionKey, depth = 1, path = []) {
-  if (count <= 0) return [];
+  if (count <= 0 || !focus) return [];
 
-  const fullPath = [...path];
-  if (focus && !fullPath.find((v) => v && v.id === focus.id)) {
-    fullPath.push(focus);
+  const seen = new Set([focus.id, ...path.map((v) => v && v.id).filter(Boolean)]);
+  const others = VIBES.filter((v) => !seen.has(v.id));
+
+  // Per-session deterministic shuffle so each session picks slightly
+  // different orbs from each bucket without losing the bucket logic.
+  const rng = rngFromSeed(hashStr(`${sessionKey}-bucket`));
+  const shuffle = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+  const styleCousins = STYLE_COUSINS[focus.style] || [];
+  const genreCousins = GENRE_COUSINS[focus.genre] || [];
+
+  // Build the 6 buckets, each shuffled per-session
+  const sameStyleDiffGenre = shuffle(
+    others.filter((v) => v.style === focus.style && v.genre !== focus.genre)
+  );
+  const sameGenreDiffStyle = shuffle(
+    others.filter((v) => v.genre && v.genre === focus.genre && v.style !== focus.style)
+  );
+  const sameBoth = shuffle(
+    others.filter((v) => v.style === focus.style && v.genre && v.genre === focus.genre)
+  );
+  const relatedStyle = shuffle(
+    others.filter((v) => styleCousins.includes(v.style) && v.style !== focus.style)
+  );
+  const relatedGenre = shuffle(
+    others.filter((v) => v.genre && genreCousins.includes(v.genre) && v.genre !== focus.genre)
+  );
+  const sameColor = shuffle(
+    others.filter(
+      (v) =>
+        v.color &&
+        v.color === focus.color &&
+        v.style !== focus.style &&
+        v.genre !== focus.genre
+    )
+  );
+
+  const used = new Set();
+  const result = [];
+  function take(bucket, n) {
+    for (const v of bucket) {
+      if (result.length >= count || n <= 0) return;
+      if (used.has(v.id)) continue;
+      result.push(v);
+      used.add(v.id);
+      n -= 1;
+    }
   }
 
-  const taste = buildTaste(fullPath);
-  const lambda = LAMBDA[depth] ?? 0.6;
-  const epsilon = EPSILON[depth] ?? 0;
-  const minDistinct = COVERAGE_MIN[depth] ?? 1;
+  if (depth >= 2) {
+    // Click 2 — converging. Prefer same-both (an actual exact-match refinement),
+    // then one same-style and one same-genre as alternative directions.
+    take(sameBoth, 1);
+    take(sameStyleDiffGenre, 1);
+    take(sameGenreDiffStyle, 1);
+  } else {
+    // Click 1 — open the four refinement axes:
+    //   • other [style] — same style, different genre   (×2)
+    //   • other [genre] — same genre, different style   (×2)
+    //   • related style — cousin from STYLE_COUSINS     (×1)
+    //   • related genre — cousin from GENRE_COUSINS     (×1)
+    take(sameStyleDiffGenre, 2);
+    take(sameGenreDiffStyle, 2);
+    take(relatedStyle, 1);
+    take(relatedGenre, 1);
+  }
 
-  const wildCount = Math.floor(count * epsilon);
-  const mainCount = Math.max(0, count - wildCount);
+  // Fill any remaining slots with the next best buckets.
+  const fallbackOrder = [
+    sameBoth,
+    sameStyleDiffGenre,
+    sameGenreDiffStyle,
+    relatedStyle,
+    relatedGenre,
+    sameColor,
+    shuffle(others),
+  ];
+  for (const bucket of fallbackOrder) {
+    if (result.length >= count) break;
+    take(bucket, count - result.length);
+  }
 
-  // Candidate pool: every catalog orb except the focus and previously-clicked.
-  const seen = new Set(fullPath.map((v) => v && v.id).filter(Boolean));
-  const pool = VIBES.filter((v) => !seen.has(v.id));
-
-  // 1) Main MMR pick — relevance × diversity × coverage.
-  const main = mmrPick(pool, mainCount, taste, lambda, minDistinct, sessionKey);
-
-  // 2) Wild cards — random-ish catalog orbs far from the main picks.
-  const wild = pickWildCards(pool, wildCount, main, sessionKey);
-
-  let picks = [...main, ...wild];
-
-  // 3) Last resort — fill any shortfall with flavor variants of the focus
-  // (only if catalog runs out, which shouldn't happen with 50 orbs).
+  // Last resort — flavor variants if the catalog is exhausted.
   let i = 0;
-  while (picks.length < count) {
-    picks.push(flavorVariant(focus, `${sessionKey}-${i++}`));
+  while (result.length < count) {
+    result.push(flavorVariant(focus, `${sessionKey}-flavor-${i++}`));
   }
 
-  // 4) Shuffle so wild cards interleave with main picks.
-  const rng = rngFromSeed(hashStr(`${sessionKey}-mix`));
-  for (let k = picks.length - 1; k > 0; k--) {
-    const j = Math.floor(rng() * (k + 1));
-    [picks[k], picks[j]] = [picks[j], picks[k]];
-  }
-
-  return picks;
+  // Shuffle final order so the buckets interleave visually in the cluster.
+  return shuffle(result).slice(0, count);
 }
 
 // Backwards-compat shim — kept for any older imports.
