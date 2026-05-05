@@ -351,70 +351,9 @@ const GENRE_COUSINS = {
   dating: ['narrative', 'visualnovel'],
 };
 
-// Recency decay: older clicks weight less when building the taste vector.
-const RECENCY_DECAY = 0.7;
-
-// ---- Tag IDF: rare tags are more informative than common ones ----
-// log(N / (1 + count(tag))) per dimension, computed once at module load.
-// Matching a niche tag like "narrative" (2 orbs) scores far higher than
-// matching "vivid" (~25 orbs) — fixes the catalog-density dominance bug.
-const IDF = (() => {
-  const counts = { color: new Map(), style: new Map(), genre: new Map() };
-  for (const v of VIBES) {
-    if (v.color) counts.color.set(v.color, (counts.color.get(v.color) || 0) + 1);
-    if (v.style) counts.style.set(v.style, (counts.style.get(v.style) || 0) + 1);
-    if (v.genre) counts.genre.set(v.genre, (counts.genre.get(v.genre) || 0) + 1);
-  }
-  const N = Math.max(1, VIBES.length);
-  const make = (m) => {
-    const out = new Map();
-    for (const [k, c] of m) out.set(k, Math.log((N + 1) / (c + 1)) + 1);
-    return out;
-  };
-  return { color: make(counts.color), style: make(counts.style), genre: make(counts.genre) };
-})();
-const idfOf = (axis, value) => (value ? IDF[axis].get(value) || 1 : 0);
-
-// ---- Tag-vector representation for cosine similarity ----
-// Sparse vector keyed by `${axis}:${value}` with IDF-weighted values
-// (× attribute weight). Used to compute continuous, fine-grained
-// similarity between orbs.
-const VEC_CACHE = new WeakMap();
-function tagVector(orb) {
-  if (!orb) return new Map();
-  if (VEC_CACHE.has(orb)) return VEC_CACHE.get(orb);
-  const v = new Map();
-  if (orb.color) v.set(`color:${orb.color}`, W.color * idfOf('color', orb.color));
-  if (orb.style) v.set(`style:${orb.style}`, W.style * idfOf('style', orb.style));
-  if (orb.genre) v.set(`genre:${orb.genre}`, W.genre * idfOf('genre', orb.genre));
-  VEC_CACHE.set(orb, v);
-  return v;
-}
-function vecNorm(v) {
-  let s = 0;
-  for (const x of v.values()) s += x * x;
-  return Math.sqrt(s) || 1;
-}
-function vecDot(a, b) {
-  // Iterate the smaller map for speed.
-  const [s, l] = a.size < b.size ? [a, b] : [b, a];
-  let d = 0;
-  for (const [k, x] of s) {
-    const y = l.get(k);
-    if (y !== undefined) d += x * y;
-  }
-  return d;
-}
-function cosineSim(a, b) {
-  const va = tagVector(a);
-  const vb = tagVector(b);
-  if (va.size === 0 || vb.size === 0) return 0;
-  return vecDot(va, vb) / (vecNorm(va) * vecNorm(vb));
-}
-
-export function similarity(a, b) {
-  if (!a || !b || a.id === b.id) return -1;
-  // Public similarity API kept as 0..3 dimension-overlap count for back-compat.
+// 0..3 — number of dimensions two orbs share (color, style, genre).
+function sharedDims(a, b) {
+  if (!a || !b || a.id === b.id) return 0;
   let s = 0;
   if (a.color && a.color === b.color) s += 1;
   if (a.style && a.style === b.style) s += 1;
@@ -422,135 +361,39 @@ export function similarity(a, b) {
   return s;
 }
 
-// Build a recency-decayed taste vector from the user's click path.
-// Most recent click weight 1; each step back multiplied by RECENCY_DECAY.
-function buildTaste(path) {
-  const taste = {
-    color: new Map(),
-    style: new Map(),
-    genre: new Map(),
-    total: 0,
-  };
-  const n = path.length;
-  for (let i = 0; i < n; i++) {
-    const orb = path[i];
-    if (!orb) continue;
-    const w = Math.pow(RECENCY_DECAY, n - 1 - i);
-    taste.total += w;
-    if (orb.color) taste.color.set(orb.color, (taste.color.get(orb.color) || 0) + w);
-    if (orb.style) taste.style.set(orb.style, (taste.style.get(orb.style) || 0) + w);
-    if (orb.genre) taste.genre.set(orb.genre, (taste.genre.get(orb.genre) || 0) + w);
-  }
-  return taste;
+export function similarity(a, b) {
+  if (!a || !b || a.id === b.id) return -1;
+  return sharedDims(a, b);
 }
 
-// IDF-weighted relevance. A match on a rare tag (e.g. "narrative", 2 orbs)
-// scores far higher than a match on a common tag (e.g. "vivid", ~25 orbs),
-// so clicking a niche orb pulls the cluster toward the niche instead of
-// toward whichever tag values dominate the catalog.
-function relevance(orb, taste) {
-  if (!orb || taste.total === 0) return 0;
-  let s = 0;
-  if (orb.color) {
-    s += W.color * (taste.color.get(orb.color) || 0) * idfOf('color', orb.color);
-  }
-  if (orb.style) {
-    s += W.style * (taste.style.get(orb.style) || 0) * idfOf('style', orb.style);
-  }
-  if (orb.genre) {
-    s += W.genre * (taste.genre.get(orb.genre) || 0) * idfOf('genre', orb.genre);
-  }
-  // Normalise by both the taste mass and the max possible IDF per dim so the
-  // result stays roughly in [0, 1] regardless of catalog skew.
-  const maxIdf = Math.max(
-    ...IDF.color.values(),
-    ...IDF.style.values(),
-    ...IDF.genre.values(),
-    1
-  );
-  return s / (taste.total * maxIdf);
-}
-
-// Soft coverage bonus: prefer candidates that introduce a new value to an
-// axis that's still under its minimum distinct-value count.
-function coverageBonus(orb, picks, minDistinct) {
-  let bonus = 0;
-  for (const axis of ['color', 'style', 'genre']) {
-    if (!orb[axis]) continue;
-    const distinct = new Set(picks.map((p) => p[axis]).filter(Boolean));
-    if (distinct.size < minDistinct && !distinct.has(orb[axis])) {
-      bonus += 0.18;
-    }
-  }
-  return bonus;
-}
-
-// Greedy MMR pick with coverage bonus: balance relevance, diversity, axis
-// coverage. λ=0 → pure diversity; λ=1 → pure relevance.
-function mmrPick(candidates, count, taste, lambda, minDistinct, sessionKey) {
-  const picks = [];
-  let pool = [...candidates];
-  // Tiny per-session jitter so identical taste vectors give slightly varied
-  // clusters across sessions — feels alive without compromising relevance.
-  const jitter = sessionKey ? rngFromSeed(hashStr(sessionKey)) : Math.random;
-  while (picks.length < count && pool.length > 0) {
-    let best = null;
-    let bestScore = -Infinity;
-    for (const c of pool) {
-      const rel = relevance(c, taste);
-      // Cosine similarity over IDF-weighted tag vectors gives continuous
-      // 0..1 values — diversity ranking actually differentiates candidates
-      // that all share 0 dimensions (the binary version tied them).
-      const maxSim = picks.length === 0
-        ? 0
-        : Math.max(...picks.map((p) => cosineSim(c, p)));
-      const cov = coverageBonus(c, picks, minDistinct);
-      const score = lambda * rel - (1 - lambda) * maxSim + cov + jitter() * 0.04;
-      if (score > bestScore) {
-        bestScore = score;
-        best = c;
-      }
-    }
-    if (!best) break;
-    picks.push(best);
-    pool = pool.filter((p) => p.id !== best.id);
-  }
-  return picks;
-}
-
-// Wild-card picks: random catalog orbs maximally different from the current
-// picks. Provides exploration so the user doesn't get trapped on click 1.
-function pickWildCards(pool, count, picks, sessionKey) {
-  if (count <= 0 || pool.length === 0) return [];
-  const rng = rngFromSeed(hashStr(`${sessionKey}-wild`));
-  const out = [];
-  let remaining = pool.filter((p) => !picks.find((q) => q.id === p.id));
-  while (out.length < count && remaining.length > 0) {
-    // Pick the candidate with lowest cosine similarity to existing picks
-    let best = null;
-    let bestScore = -Infinity;
-    for (const c of remaining) {
-      const ref = [...picks, ...out];
-      const maxSim = ref.length === 0
-        ? 0
-        : Math.max(...ref.map((p) => cosineSim(c, p)));
-      const score = (1 - maxSim) + rng() * 0.3;
-      if (score > bestScore) {
-        bestScore = score;
-        best = c;
-      }
-    }
-    if (!best) break;
-    out.push(best);
-    remaining = remaining.filter((p) => p.id !== best.id);
-  }
-  return out;
-}
-
-// Public: maximally diverse initial sample. Used for click 0 (the first
-// 12 orbs the user sees). Pure diversity — no taste signal yet.
+// Initial cluster: greedy max-diversity sampler. Each pick is the catalog
+// orb that differs from the already-picked set on as many of (color, style,
+// genre) as possible, so the first 12 orbs cover the taste space broadly.
 export function diverseSample(count) {
-  return mmrPick(VIBES, count, buildTaste([]), LAMBDA[0], COVERAGE_MIN[0], `init-${Date.now()}`);
+  const picked = [];
+  const remaining = [...VIBES];
+  if (remaining.length === 0) return picked;
+  picked.push(remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0]);
+  while (picked.length < count && remaining.length > 0) {
+    let bestScore = -1;
+    let bestIdx = 0;
+    for (let i = 0; i < remaining.length; i++) {
+      const cand = remaining[i];
+      let score = 0;
+      for (const p of picked) {
+        if (cand.color !== p.color) score += 1;
+        if (cand.style !== p.style) score += 1;
+        if (cand.genre !== p.genre) score += 1;
+      }
+      score += Math.random() * 0.4; // gentle tiebreak — fresh per session
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
+      }
+    }
+    picked.push(remaining.splice(bestIdx, 1)[0]);
+  }
+  return picked;
 }
 
 // ---------- Variant generation ----------
