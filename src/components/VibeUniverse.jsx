@@ -6,13 +6,15 @@ import Connections from './Connections.jsx';
 import StarField from './StarField.jsx';
 import Completion from './Completion.jsx';
 import CompletionOverlay from './CompletionOverlay.jsx';
-import { VIBES, variantsOf } from '../data/vibes.js';
+import { VIBES, variantsOf, diverseSample } from '../data/vibes.js';
 import { getInsight } from '../data/scoring.js';
 
-const SLOT_COUNT = 14;
+const SLOT_COUNT = 12;
 
-// 14 → 1 over 5 clicks. Steady narrowing.
-const COUNT_SEQUENCE = [14, 10, 7, 4, 2, 1];
+// THREE clicks to a chosen game. Initial cluster shows 12 maximally-different
+// orbs; click narrows to 7 sharing style or genre with the focus; click again
+// narrows to 4 with tighter overlap; final click commits to a specific game.
+const COUNT_SEQUENCE = [12, 7, 4, 1];
 function activeCountForDepth(depth) {
   if (depth <= 0) return COUNT_SEQUENCE[0];
   return COUNT_SEQUENCE[Math.min(depth, COUNT_SEQUENCE.length - 1)];
@@ -58,8 +60,10 @@ function mulberry32(a) {
 }
 
 function pickInitialSlots() {
-  const shuffled = [...VIBES].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, SLOT_COUNT).map((v) => ({ vibe: v, active: true }));
+  // Maximally-diverse sample so the first cluster covers as much of the
+  // style × genre space as possible.
+  const sampled = diverseSample(SLOT_COUNT);
+  return sampled.map((v) => ({ vibe: v, active: true }));
 }
 
 export default function VibeUniverse() {
