@@ -60,6 +60,13 @@ const COLOR_PALETTES = {
   salmon:  [[1.0, 0.65, 0.55], [1.0, 0.82, 0.72],  [0.4, 0.22, 0.18]],
   lavender:[[0.78, 0.7, 0.95], [0.92, 0.85, 1.0],  [0.4, 0.32, 0.55]],
   fuchsia: [[1.0, 0.25, 0.7],  [1.0, 0.5, 0.85],   [0.35, 0.05, 0.22]],
+  bright:  [[1.0, 0.55, 0.4],  [1.0, 0.85, 0.4],   [0.4, 0.7, 1.0]],
+  desaturated: [[0.55, 0.55, 0.6], [0.7, 0.7, 0.72], [0.25, 0.27, 0.32]],
+  flat:    [[0.95, 0.65, 0.4], [0.4, 0.78, 0.95],  [0.25, 0.25, 0.3]],
+  bluegreen:[[0.15, 0.7, 0.6], [0.4, 0.92, 0.78],  [0.05, 0.18, 0.22]],
+  greenblue:[[0.2, 0.6, 0.78], [0.45, 0.82, 0.95], [0.05, 0.2, 0.3]],
+  greenbrown:[[0.55, 0.55, 0.3],[0.75, 0.6, 0.35], [0.2, 0.18, 0.1]],
+  vividbluegreen:[[0.2, 0.85, 0.85],[0.45, 1.0, 1.0], [0.05, 0.25, 0.3]],
 };
 const DEFAULT_PALETTE = [
   [0.7, 0.72, 0.78],
@@ -99,6 +106,12 @@ export const STYLE_LABELS = {
   vector: 'Vector',
   oil: 'Oil-painted',
   chibi: 'Chibi',
+  cartoonish: 'Cartoonish',
+  cartoonish3d: '3D Cartoonish',
+  childish: 'Childish',
+  classic: 'Classic',
+  egypt: 'Egyptian',
+  japanese: 'Japanese',
 };
 export const GENRE_LABELS = {
   rpg: 'RPG',
@@ -146,6 +159,16 @@ export const GENRE_LABELS = {
   farming: 'Farming',
   party: 'Party',
   trivia: 'Trivia',
+  adventurequest: 'Adventure Quest',
+  battle: 'Battle',
+  carrace: 'Car Racing',
+  race: 'Racing',
+  sea: 'Naval',
+  space: 'Space',
+  superheroes: 'Superhero',
+  towerdefense: 'Tower Defense',
+  village: 'Village Sim',
+  war: 'Warfare',
 };
 export const COLOR_LABELS = {
   pink: 'Pink', red: 'Red', orange: 'Orange', yellow: 'Yellow', green: 'Green',
@@ -159,6 +182,9 @@ export const COLOR_LABELS = {
   darkblue: 'Deep Blue', navy: 'Navy', indigo: 'Indigo', vivid: 'Vivid',
   ruby: 'Ruby', jade: 'Jade', coral: 'Coral', salmon: 'Salmon',
   lavender: 'Lavender', fuchsia: 'Fuchsia',
+  bright: 'Bright', desaturated: 'Desaturated', flat: 'Flat-toned',
+  bluegreen: 'Blue-green', greenblue: 'Green-blue', greenbrown: 'Green-brown',
+  vividbluegreen: 'Vivid Teal',
 };
 
 // ---------- Parse one image module into a VIBE entry ----------
