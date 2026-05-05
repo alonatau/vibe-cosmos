@@ -50,6 +50,16 @@ const COLOR_PALETTES = {
   violet:  [[0.55, 0.3, 0.95], [0.75, 0.55, 1.0],  [0.2, 0.1, 0.4]],
   lime:    [[0.6, 0.95, 0.25], [0.85, 1.0, 0.5],   [0.18, 0.35, 0.05]],
   ivory:   [[1.0, 0.95, 0.85], [1.0, 1.0, 0.95],   [0.5, 0.45, 0.35]],
+  darkblue:[[0.25, 0.45, 0.85],[0.45, 0.65, 1.0],  [0.04, 0.08, 0.2]],
+  navy:    [[0.18, 0.3, 0.65], [0.4, 0.55, 0.92],  [0.02, 0.05, 0.15]],
+  indigo:  [[0.32, 0.25, 0.85],[0.55, 0.5, 1.0],   [0.08, 0.05, 0.25]],
+  vivid:   [[1.0, 0.5, 0.3],   [0.4, 0.85, 1.0],   [1.0, 0.85, 0.3]],
+  ruby:    [[0.85, 0.15, 0.35],[1.0, 0.4, 0.55],   [0.25, 0.05, 0.12]],
+  jade:    [[0.18, 0.7, 0.55], [0.4, 0.92, 0.78],  [0.05, 0.22, 0.18]],
+  coral:   [[1.0, 0.55, 0.45], [1.0, 0.78, 0.65],  [0.35, 0.18, 0.15]],
+  salmon:  [[1.0, 0.65, 0.55], [1.0, 0.82, 0.72],  [0.4, 0.22, 0.18]],
+  lavender:[[0.78, 0.7, 0.95], [0.92, 0.85, 1.0],  [0.4, 0.32, 0.55]],
+  fuchsia: [[1.0, 0.25, 0.7],  [1.0, 0.5, 0.85],   [0.35, 0.05, 0.22]],
 };
 const DEFAULT_PALETTE = [
   [0.7, 0.72, 0.78],
@@ -80,6 +90,15 @@ export const STYLE_LABELS = {
   watercolor: 'Watercolour',
   ink: 'Ink',
   manga: 'Manga',
+  realistic: 'Realistic',
+  stylized: 'Stylized',
+  handdrawn: 'Hand-drawn',
+  sketch: 'Sketch',
+  isometric: 'Isometric',
+  flat: 'Flat',
+  vector: 'Vector',
+  oil: 'Oil-painted',
+  chibi: 'Chibi',
 };
 export const GENRE_LABELS = {
   rpg: 'RPG',
@@ -109,6 +128,24 @@ export const GENRE_LABELS = {
   action: 'Action',
   tactics: 'Tactics',
   metroidvania: 'Metroidvania',
+  flight: 'Flight Sim',
+  spaceflight: 'Space Sim',
+  cars: 'Driving',
+  driving: 'Driving',
+  flying: 'Flight',
+  battleroyale: 'Battle Royale',
+  mmo: 'MMO',
+  card: 'Card Game',
+  cooking: 'Cooking',
+  rhythm: 'Rhythm',
+  dating: 'Dating Sim',
+  city: 'City Builder',
+  builder: 'Builder',
+  crafting: 'Crafting',
+  fishing: 'Fishing',
+  farming: 'Farming',
+  party: 'Party',
+  trivia: 'Trivia',
 };
 export const COLOR_LABELS = {
   pink: 'Pink', red: 'Red', orange: 'Orange', yellow: 'Yellow', green: 'Green',
@@ -119,6 +156,9 @@ export const COLOR_LABELS = {
   pastel: 'Pastel', neon: 'Neon', rainbow: 'Vibrant', rose: 'Rose',
   mint: 'Mint', amber: 'Amber', crimson: 'Crimson', emerald: 'Emerald',
   azure: 'Azure', violet: 'Violet', lime: 'Lime', ivory: 'Ivory',
+  darkblue: 'Deep Blue', navy: 'Navy', indigo: 'Indigo', vivid: 'Vivid',
+  ruby: 'Ruby', jade: 'Jade', coral: 'Coral', salmon: 'Salmon',
+  lavender: 'Lavender', fuchsia: 'Fuchsia',
 };
 
 // ---------- Parse one image module into a VIBE entry ----------
