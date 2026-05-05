@@ -3,8 +3,9 @@ import CompletionOverlay from './CompletionOverlay.jsx';
 import CompletionCanvas from './CompletionCanvas.jsx';
 
 // Prompt-to-Game flow: textarea → on submit, the typed prompt's letters
-// stream into the wireframe cube, the cube absorbs them, purple sparkle
-// erupts, and the headline (the prompt as the game name) appears above.
+// fly magically from the prompt bar into the wireframe cube, the cube
+// absorbs them, purple sparkle erupts, and the headline (the prompt as
+// the game name) appears above.
 export default function P2GScreen({ onExit }) {
   const [prompt, setPrompt] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -34,7 +35,6 @@ export default function P2GScreen({ onExit }) {
     return t.charAt(0).toUpperCase() + t.slice(1);
   })();
 
-  // Same insight shape as CCP — full cube/burst/sparkle sequence.
   const insight = submitted
     ? {
         headline,
@@ -89,21 +89,29 @@ export default function P2GScreen({ onExit }) {
   );
 }
 
-// Render each character as an inline span; per-char animation-delay creates
-// the staggered "stream into the box" effect. Each char arrives at the cube
-// before MAGIC_BURST_AT (~2.2s) so the burst absorbs them.
-const STAGGER_MS = 32;
-const FLIGHT_MS = 1200;
-const FIRST_CHAR_DELAY_MS = 550;
+// Each letter takes a unique magical flight from the prompt-bar position
+// down into the cube. Per-char curve/lift/rotation values are deterministic
+// (based on index) so the stream looks orchestrated, not random.
+const STAGGER_MS = 22;
+const FLIGHT_MS = 1500;
+const FIRST_CHAR_DELAY_MS = 400;
 
 function FlyingLetters({ text }) {
-  const display = (text || '').slice(0, 60);
-  // Tiny deterministic horizontal drift per char so letters curve toward
-  // the cube instead of falling in straight columns.
-  const driftFor = (i) => {
-    const offset = ((i * 41) % 17) - 8; // -8..+8, deterministic
-    return `${offset * 6}px`;
+  const display = (text || '').slice(0, 80);
+  // Horizontal drift at the apex — alternating sides so letters spread
+  // outward then converge back toward the cube.
+  const curveFor = (i) => {
+    const sign = i % 2 === 0 ? 1 : -1;
+    const mag = 70 + ((i * 13) % 80); // 70–149 px
+    return `${sign * mag}px`;
   };
+  // Lift amount before descending — varies per letter for organic feel.
+  const liftFor = (i) => `${-(18 + ((i * 7) % 30))}px`;
+  // Mid-flight rotation
+  const rotMidFor = (i) => `${((i * 23) % 36) - 18}deg`;
+  // End rotation — spiral as it enters the cube
+  const rotEndFor = (i) => `${((i * 47) % 540) - 270}deg`;
+
   return (
     <div className="p2g-flying">
       {display.split('').map((c, i) => (
@@ -113,10 +121,13 @@ function FlyingLetters({ text }) {
           style={{
             animationDelay: `${FIRST_CHAR_DELAY_MS + i * STAGGER_MS}ms`,
             animationDuration: `${FLIGHT_MS}ms`,
-            '--drift': driftFor(i),
+            '--curveX': curveFor(i),
+            '--liftY': liftFor(i),
+            '--rotMid': rotMidFor(i),
+            '--rotEnd': rotEndFor(i),
           }}
         >
-          {c === ' ' ? ' ' : c}
+          {c === ' ' ? ' ' : c}
         </span>
       ))}
     </div>
