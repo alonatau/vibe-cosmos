@@ -1,8 +1,11 @@
-// Compute the final game type from the user's path of 3 chosen vibes.
-// Each vibe carries a single `style` and a single `genre`. The dominant
-// style and dominant genre across the path drive the recipe.
+// Compose the final game type from the user's path. Three dimensions each
+// get a winner via mode (most-frequent across path); compose into a recipe.
 
-import { STYLE_LABELS, GENRE_LABELS } from './vibes.js';
+import {
+  STYLE_LABELS,
+  GENRE_LABELS,
+  COLOR_LABELS,
+} from './vibes.js';
 
 function modeOf(values) {
   const counts = new Map();
@@ -21,37 +24,50 @@ function modeOf(values) {
   return best;
 }
 
+function titleCase(s) {
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+const labelStyle = (s) => (s ? STYLE_LABELS[s] || titleCase(s) : '');
+const labelGenre = (g) => (g ? GENRE_LABELS[g] || titleCase(g) : '');
+const labelColor = (c) => (c ? COLOR_LABELS[c] || titleCase(c) : '');
+
 export function getGameRecipe(path) {
   if (!path.length) {
-    return { headline: '', body: '', recipe: { style: null, genre: null } };
+    return { headline: '', body: '', recipe: { color: null, style: null, genre: null } };
   }
+  const colors = path.map((v) => v?.color).filter(Boolean);
   const styles = path.map((v) => v?.style).filter(Boolean);
   const genres = path.map((v) => v?.genre).filter(Boolean);
+  const color = modeOf(colors);
   const style = modeOf(styles);
   const genre = modeOf(genres);
 
-  const styleLabel = style ? STYLE_LABELS[style] || style : '';
-  const genreLabel = genre ? GENRE_LABELS[genre] || genre : 'Game';
+  const colorLabel = labelColor(color);
+  const styleLabel = labelStyle(style);
+  const genreLabel = labelGenre(genre) || 'Game';
 
-  const headline = [styleLabel, genreLabel].filter(Boolean).join(' ');
-  const body = composeBody(styleLabel, genreLabel);
+  const headline = [colorLabel, styleLabel, genreLabel].filter(Boolean).join(' ');
+  const body = composeBody(colorLabel, styleLabel, genreLabel);
 
   return {
     headline,
     body,
-    recipe: { style, genre },
+    recipe: { color, style, genre },
   };
 }
 
-function composeBody(styleLabel, genreLabel) {
-  if (styleLabel && genreLabel) {
-    return `A ${styleLabel.toLowerCase()} ${genreLabel.toLowerCase()}.`;
-  }
-  if (genreLabel) return `A ${genreLabel.toLowerCase()} game.`;
-  return '';
+function composeBody(colorLabel, styleLabel, genreLabel) {
+  const parts = [];
+  if (colorLabel) parts.push(colorLabel.toLowerCase());
+  if (styleLabel) parts.push(`${styleLabel.toLowerCase()}-styled`);
+  const lead = parts.length
+    ? `A ${parts.join(', ')} ${genreLabel.toLowerCase()}.`
+    : `A ${genreLabel.toLowerCase()}.`;
+  return lead;
 }
 
-// Backwards-compat shim for the overlay's `insight` prop shape.
 export function getInsight(path) {
   const recipe = getGameRecipe(path);
   return {
