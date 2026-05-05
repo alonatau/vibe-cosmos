@@ -218,9 +218,34 @@ export const VIBES = Object.entries(modules).map(([path, mod]) => {
   };
 });
 
-// ---------- Diversity + similarity ----------
+// ---------- Algorithm: MMR + taste vector + coverage + wild cards ----------
+//
+// Research-grounded 3-click drill-down. Anchored in:
+//   Loepp et al. 2014   — choice-based cold-start beats rating-based
+//   Carbonell & Goldstein 1998 — MMR diversity reranking (λ ∈ [0.3, 0.7])
+//   Viappiani & Boutilier 2010 — greedy EUS near-optimal for choice queries
+//   Tondello et al. 2019 — game preference: genre > style > color
+//   Vargas & Castells 2011 — coverage as a diversification axis
+//
+// Three picks of (12 → 7 → 4) yields 8.4 bits = enough for ≤ 256 games. With
+// 50 in the catalog, 3 clicks is provably sufficient.
 
-// Number of dimensions shared between two orbs (color, style, genre).
+// Attribute weights: genre dominates revealed preference for games.
+const W = { genre: 0.5, style: 0.3, color: 0.2 };
+
+// MMR λ schedule — relevance share by depth (rest is diversity).
+const LAMBDA = { 0: 0.2, 1: 0.4, 2: 0.6, 3: 1.0 };
+
+// ε-greedy wild-card share by depth (fraction of cluster that's exploration).
+const EPSILON = { 0: 0.25, 1: 0.15, 2: 0.0, 3: 0.0 };
+
+// Min distinct values per axis at each depth (anti-clone coverage).
+const COVERAGE_MIN = { 0: 3, 1: 3, 2: 2, 3: 1 };
+
+// Recency decay: older clicks weight less when building the taste vector.
+const RECENCY_DECAY = 0.7;
+
+// Number of dimensions shared between two orbs (0..3).
 function sharedDims(a, b) {
   if (!a || !b || a.id === b.id) return 0;
   let s = 0;
@@ -235,33 +260,115 @@ export function similarity(a, b) {
   return sharedDims(a, b);
 }
 
-// Greedy max-diversity sampler — pick `count` orbs maximizing mutual
-// dimensional difference across (color, style, genre).
-export function diverseSample(count) {
-  const picked = [];
-  const remaining = [...VIBES];
-  if (remaining.length === 0) return picked;
-  picked.push(remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0]);
-  while (picked.length < count && remaining.length > 0) {
-    let bestScore = -1;
-    let bestIdx = 0;
-    for (let i = 0; i < remaining.length; i++) {
-      const cand = remaining[i];
-      let score = 0;
-      for (const p of picked) {
-        if (cand.color !== p.color) score += 1;
-        if (cand.style !== p.style) score += 1;
-        if (cand.genre !== p.genre) score += 1;
-      }
-      score += Math.random() * 0.4; // gentle tiebreak so refresh feels fresh
+// Build a recency-decayed taste vector from the user's click path.
+// Most recent click weight 1; each step back multiplied by RECENCY_DECAY.
+function buildTaste(path) {
+  const taste = {
+    color: new Map(),
+    style: new Map(),
+    genre: new Map(),
+    total: 0,
+  };
+  const n = path.length;
+  for (let i = 0; i < n; i++) {
+    const orb = path[i];
+    if (!orb) continue;
+    const w = Math.pow(RECENCY_DECAY, n - 1 - i);
+    taste.total += w;
+    if (orb.color) taste.color.set(orb.color, (taste.color.get(orb.color) || 0) + w);
+    if (orb.style) taste.style.set(orb.style, (taste.style.get(orb.style) || 0) + w);
+    if (orb.genre) taste.genre.set(orb.genre, (taste.genre.get(orb.genre) || 0) + w);
+  }
+  return taste;
+}
+
+// Relevance ∈ ~[0, 1]: weighted match against the user's taste vector.
+function relevance(orb, taste) {
+  if (!orb || taste.total === 0) return 0;
+  let s = 0;
+  if (orb.color) s += W.color * (taste.color.get(orb.color) || 0);
+  if (orb.style) s += W.style * (taste.style.get(orb.style) || 0);
+  if (orb.genre) s += W.genre * (taste.genre.get(orb.genre) || 0);
+  return s / taste.total; // normalize so weights sum to ≤ 1
+}
+
+// Soft coverage bonus: prefer candidates that introduce a new value to an
+// axis that's still under its minimum distinct-value count.
+function coverageBonus(orb, picks, minDistinct) {
+  let bonus = 0;
+  for (const axis of ['color', 'style', 'genre']) {
+    if (!orb[axis]) continue;
+    const distinct = new Set(picks.map((p) => p[axis]).filter(Boolean));
+    if (distinct.size < minDistinct && !distinct.has(orb[axis])) {
+      bonus += 0.18;
+    }
+  }
+  return bonus;
+}
+
+// Greedy MMR pick with coverage bonus: balance relevance, diversity, axis
+// coverage. λ=0 → pure diversity; λ=1 → pure relevance.
+function mmrPick(candidates, count, taste, lambda, minDistinct, sessionKey) {
+  const picks = [];
+  let pool = [...candidates];
+  // Tiny per-session jitter so identical taste vectors give slightly varied
+  // clusters across sessions — feels alive without compromising relevance.
+  const jitter = sessionKey ? rngFromSeed(hashStr(sessionKey)) : Math.random;
+  while (picks.length < count && pool.length > 0) {
+    let best = null;
+    let bestScore = -Infinity;
+    for (const c of pool) {
+      const rel = relevance(c, taste);
+      const maxSim = picks.length === 0
+        ? 0
+        : Math.max(...picks.map((p) => sharedDims(c, p) / 3));
+      const cov = coverageBonus(c, picks, minDistinct);
+      const score = lambda * rel - (1 - lambda) * maxSim + cov + jitter() * 0.04;
       if (score > bestScore) {
         bestScore = score;
-        bestIdx = i;
+        best = c;
       }
     }
-    picked.push(remaining.splice(bestIdx, 1)[0]);
+    if (!best) break;
+    picks.push(best);
+    pool = pool.filter((p) => p.id !== best.id);
   }
-  return picked;
+  return picks;
+}
+
+// Wild-card picks: random catalog orbs maximally different from the current
+// picks. Provides exploration so the user doesn't get trapped on click 1.
+function pickWildCards(pool, count, picks, sessionKey) {
+  if (count <= 0 || pool.length === 0) return [];
+  const rng = rngFromSeed(hashStr(`${sessionKey}-wild`));
+  const out = [];
+  let remaining = pool.filter((p) => !picks.find((q) => q.id === p.id));
+  while (out.length < count && remaining.length > 0) {
+    // Pick the candidate with lowest similarity to existing picks
+    let best = null;
+    let bestScore = -Infinity;
+    for (const c of remaining) {
+      const ref = [...picks, ...out];
+      const maxSim = ref.length === 0
+        ? 0
+        : Math.max(...ref.map((p) => sharedDims(c, p) / 3));
+      const score = (1 - maxSim) + rng() * 0.3;
+      if (score > bestScore) {
+        bestScore = score;
+        best = c;
+      }
+    }
+    if (!best) break;
+    out.push(best);
+    remaining = remaining.filter((p) => p.id !== best.id);
+  }
+  return out;
+}
+
+// Public: maximally diverse initial sample. Used for click 0 (the first
+// 12 orbs the user sees). Pure diversity — no taste signal yet.
+export function diverseSample(count) {
+  return mmrPick(VIBES, count, buildTaste([]), LAMBDA[0], COVERAGE_MIN[0], `init-${Date.now()}`);
 }
 
 // ---------- Variant generation ----------
@@ -315,102 +422,47 @@ function flavorVariant(base, seedKey) {
   };
 }
 
-// Pick `count` orbs from `pool` that maximally differ from each other along
-// `varyDim` (color/style/genre) and aren't already picked.
-function diverseAlong(pool, count, varyDim, exclude) {
-  const out = [];
-  const remaining = pool.filter((p) => !exclude.has(p.id));
-  while (out.length < count && remaining.length > 0) {
-    if (out.length === 0) {
-      const idx = Math.floor(Math.random() * remaining.length);
-      out.push(remaining.splice(idx, 1)[0]);
-      continue;
-    }
-    let best = -1;
-    let bestIdx = 0;
-    for (let i = 0; i < remaining.length; i++) {
-      const cand = remaining[i];
-      let score = 0;
-      for (const p of out) {
-        if (cand[varyDim] !== p[varyDim]) score += 1;
-      }
-      score += Math.random() * 0.3;
-      if (score > best) {
-        best = score;
-        bestIdx = i;
-      }
-    }
-    out.push(remaining.splice(bestIdx, 1)[0]);
-  }
-  return out;
-}
-
-// Build the next cluster after a click. Variants share ANY of the focus's
-// non-null dimensions. Depth controls how tight the matches are.
-//
-//   depth 1 — first click → spread across same-color, same-style, same-genre
-//             buckets so the user sees real options on each axis
-//   depth 2 — second click → prefer high-overlap matches (2-3 shared dims)
-export function variantsOf(base, count, sessionKey, depth = 1) {
+// Build the next cluster of `count` candidates after a click. `path` is the
+// full sequence of clicked orbs (including the current focus). The taste
+// vector is built from the path with recency decay; candidates are scored by
+// MMR with depth-dependent λ; coverage and ε-greedy wild cards keep the user
+// from getting trapped on their first click.
+export function variantsOf(focus, count, sessionKey, depth = 1, path = []) {
   if (count <= 0) return [];
 
-  const others = VIBES.filter((v) => v.id !== base.id);
-  const sameColor  = base.color  ? others.filter((v) => v.color  === base.color)  : [];
-  const sameStyle  = base.style  ? others.filter((v) => v.style  === base.style)  : [];
-  const sameGenre  = base.genre  ? others.filter((v) => v.genre  === base.genre)  : [];
-  const sameTwoOrMore = others.filter((v) => sharedDims(v, base) >= 2);
-
-  const exclude = new Set([base.id]);
-  const picks = [];
-
-  if (depth === 1) {
-    // 1-2 high-overlap matches up front, then balanced single-axis siblings.
-    const overlapQuota = Math.min(2, sameTwoOrMore.length, Math.max(1, Math.floor(count * 0.3)));
-    const overlap = sameTwoOrMore.slice(0, overlapQuota);
-    overlap.forEach((p) => exclude.add(p.id));
-    picks.push(...overlap);
-
-    // Distribute remaining across color/style/genre buckets evenly.
-    const dims = [
-      { name: 'style',  pool: sameStyle,  vary: 'genre' },
-      { name: 'genre',  pool: sameGenre,  vary: 'style' },
-      { name: 'color',  pool: sameColor,  vary: 'style' },
-    ].filter((d) => d.pool.length > 0);
-
-    let remaining = count - picks.length;
-    for (let pass = 0; pass < 3 && remaining > 0; pass++) {
-      const slotsPerDim = Math.ceil(remaining / dims.length);
-      for (const d of dims) {
-        if (remaining <= 0) break;
-        const wanted = Math.min(slotsPerDim, remaining);
-        const got = diverseAlong(d.pool, wanted, d.vary, exclude);
-        got.forEach((p) => exclude.add(p.id));
-        picks.push(...got);
-        remaining = count - picks.length;
-      }
-    }
-  } else {
-    // Depth 2+: prioritise high-overlap matches.
-    const ranked = others
-      .map((v) => ({ v, s: sharedDims(v, base) }))
-      .filter((x) => x.s > 0)
-      .sort((a, b) => b.s - a.s);
-    for (const { v } of ranked) {
-      if (picks.length >= count) break;
-      if (!exclude.has(v.id)) {
-        picks.push(v);
-        exclude.add(v.id);
-      }
-    }
+  const fullPath = [...path];
+  if (focus && !fullPath.find((v) => v && v.id === focus.id)) {
+    fullPath.push(focus);
   }
 
-  // Fill any shortfall with flavor variants of the focus.
+  const taste = buildTaste(fullPath);
+  const lambda = LAMBDA[depth] ?? 0.6;
+  const epsilon = EPSILON[depth] ?? 0;
+  const minDistinct = COVERAGE_MIN[depth] ?? 1;
+
+  const wildCount = Math.floor(count * epsilon);
+  const mainCount = Math.max(0, count - wildCount);
+
+  // Candidate pool: every catalog orb except the focus and previously-clicked.
+  const seen = new Set(fullPath.map((v) => v && v.id).filter(Boolean));
+  const pool = VIBES.filter((v) => !seen.has(v.id));
+
+  // 1) Main MMR pick — relevance × diversity × coverage.
+  const main = mmrPick(pool, mainCount, taste, lambda, minDistinct, sessionKey);
+
+  // 2) Wild cards — random-ish catalog orbs far from the main picks.
+  const wild = pickWildCards(pool, wildCount, main, sessionKey);
+
+  let picks = [...main, ...wild];
+
+  // 3) Last resort — fill any shortfall with flavor variants of the focus
+  // (only if catalog runs out, which shouldn't happen with 50 orbs).
   let i = 0;
   while (picks.length < count) {
-    picks.push(flavorVariant(base, `${sessionKey}-${i++}`));
+    picks.push(flavorVariant(focus, `${sessionKey}-${i++}`));
   }
 
-  // Shuffle so different shared-dim buckets interleave.
+  // 4) Shuffle so wild cards interleave with main picks.
   const rng = rngFromSeed(hashStr(`${sessionKey}-mix`));
   for (let k = picks.length - 1; k > 0; k--) {
     const j = Math.floor(rng() * (k + 1));

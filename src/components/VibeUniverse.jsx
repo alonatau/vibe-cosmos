@@ -145,11 +145,15 @@ export default function VibeUniverse() {
         const newPath = [...path, clickedVibe];
         setPath(newPath);
         sessionKeyRef.current += 1;
+        // Pass the full path so the algorithm builds a recency-decayed taste
+        // vector across ALL clicks, not just the latest. MMR reranks the
+        // catalog by relevance × diversity × coverage.
         const variants = variantsOf(
           clickedVibe,
           Math.max(0, targetCount - 1),
           `s${sessionKeyRef.current}`,
-          newDepth
+          newDepth,
+          newPath
         );
 
         // Pick which currently-active slots survive into the next state.
