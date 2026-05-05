@@ -111,7 +111,6 @@ function MagicBox({ elapsedRef }) {
   const cubeFaceRef = useRef();
   const edgesRef = useRef();
   const sparklesRef = useRef();
-  const pillarRef = useRef();
 
   // Cube edges geometry (thin glowing lines along all 12 edges)
   const edgesGeom = useMemo(
@@ -178,19 +177,6 @@ function MagicBox({ elapsedRef }) {
       sparklesRef.current.material.size = baseSize * burstScale;
     }
 
-    // Light pillar — invisible until burst, then shoots up
-    if (pillarRef.current) {
-      if (sinceBurst <= 0) {
-        pillarRef.current.scale.set(0.001, 0.001, 0.001);
-      } else {
-        const u = Math.min(1, sinceBurst / 0.7);
-        const eased = 1 - Math.pow(1 - u, 3);
-        pillarRef.current.scale.set(1, 1 + eased * 9, 1);
-        if (pillarRef.current.material) {
-          pillarRef.current.material.opacity = 0.55 * Math.exp(-sinceBurst * 0.45);
-        }
-      }
-    }
   });
 
   return (
@@ -232,18 +218,6 @@ function MagicBox({ elapsedRef }) {
           depthWrite={false}
         />
       </points>
-      {/* Vertical light pillar — purple-tinted; emerges at burst */}
-      <mesh ref={pillarRef} position={[0, CUBE_SIZE / 2 + 0.4, 0]} scale={0.001}>
-        <cylinderGeometry args={[0.45, 0.85, 1, 28, 1, true]} />
-        <meshBasicMaterial
-          color={new THREE.Color(PURPLE.light[0], PURPLE.light[1], PURPLE.light[2])}
-          transparent
-          opacity={0}
-          side={THREE.DoubleSide}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </mesh>
     </group>
   );
 }
@@ -320,67 +294,6 @@ function MagicParticles({ elapsedRef }) {
   );
 }
 
-// ============================================================
-// Magic rings — purple, expanding upward from the cube at burst
-// ============================================================
-const RING_DELAYS = [0.0, 0.22, 0.5];
-
-function MagicRings({ elapsedRef }) {
-  const ring0 = useRef();
-  const ring1 = useRef();
-  const ring2 = useRef();
-  const refs = [ring0, ring1, ring2];
-  const tint = useMemo(
-    () => new THREE.Color(PURPLE.light[0], PURPLE.light[1], PURPLE.light[2]),
-    []
-  );
-
-  useFrame(() => {
-    const t = elapsedRef.current;
-    const sinceBurst = t - MAGIC_BURST_AT;
-    refs.forEach((ref, i) => {
-      if (!ref.current) return;
-      const ringT = sinceBurst - RING_DELAYS[i];
-      if (ringT < 0 || ringT > 2.0) {
-        ref.current.scale.setScalar(0.001);
-        if (ref.current.material) ref.current.material.opacity = 0;
-        return;
-      }
-      const lifeU = ringT / 2.0;
-      const ease = 1 - Math.pow(1 - lifeU, 2.4);
-      const r = 0.5 + ease * 4;
-      ref.current.scale.set(r, r, 1);
-      ref.current.position.y = CUBE_CENTER_Y + ringT * 1.6;
-      if (ref.current.material) {
-        ref.current.material.opacity = (1 - lifeU) * 0.7;
-      }
-    });
-  });
-
-  return (
-    <>
-      {RING_DELAYS.map((_, i) => (
-        <mesh
-          key={i}
-          ref={refs[i]}
-          rotation={[-Math.PI / 2, 0, 0]}
-          scale={0.001}
-        >
-          <ringGeometry args={[0.95, 1, 32]} />
-          <meshBasicMaterial
-            color={tint}
-            transparent
-            opacity={0}
-            side={THREE.DoubleSide}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-      ))}
-    </>
-  );
-}
-
 export default function Completion({ active }) {
   const elapsedRef = useRef(0);
   useEffect(() => {
@@ -396,7 +309,6 @@ export default function Completion({ active }) {
     <group>
       <MagicBox elapsedRef={elapsedRef} />
       <MagicParticles elapsedRef={elapsedRef} />
-      <MagicRings elapsedRef={elapsedRef} />
     </group>
   );
 }
